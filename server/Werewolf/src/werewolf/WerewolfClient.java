@@ -20,7 +20,7 @@ public class WerewolfClient implements Runnable {
   private static Socket clientSocket = null;
   
   private static PrintStream os = null;
-  private static DataInputStream is = null;
+  private static BufferedReader is = null;
 
   private static BufferedReader inputLine = null;
   private static boolean closed = false;
@@ -36,7 +36,7 @@ public class WerewolfClient implements Runnable {
       clientSocket = new Socket(host, portNumber);
       inputLine = new BufferedReader(new InputStreamReader(System.in));
       os = new PrintStream(clientSocket.getOutputStream());
-      is = new DataInputStream(clientSocket.getInputStream());
+      is = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
       
     } catch (UnknownHostException e) {
       System.err.println("Don't know about host " + host);
