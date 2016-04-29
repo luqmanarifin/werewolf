@@ -1,7 +1,9 @@
 package werewolf.server;
 
+import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.net.Socket;
 import org.json.simple.JSONObject;
@@ -10,7 +12,7 @@ import org.json.simple.parser.ParseException;
 
 class WerewolfServerThread extends Thread {
 
-  private DataInputStream is = null;
+  private BufferedReader is = null;
   private PrintStream os = null;
   private Socket clientSocket = null;
   private final WerewolfServerThread[] threads;
@@ -30,7 +32,7 @@ class WerewolfServerThread extends Thread {
 
     try {
       
-      is = new DataInputStream(clientSocket.getInputStream());
+      is = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
       os = new PrintStream(clientSocket.getOutputStream());
       
       while (true) {

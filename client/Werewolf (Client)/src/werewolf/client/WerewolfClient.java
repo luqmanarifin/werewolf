@@ -7,6 +7,7 @@ import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.Scanner;
 import org.json.simple.JSONObject;
 
 /**
@@ -24,12 +25,19 @@ public class WerewolfClient implements Runnable {
   private static BufferedReader inputLine = null;
   private static boolean closed = false;
   
-  public static void main(String[] args) {
+  
+public static void main(String[] args) {
+    int portNumber;
+    String host;
 
+    Scanner sc;
+    sc = new Scanner(System.in);
     
-    int portNumber = 8080;
-    String host = "localhost";
-
+    System.out.println("Server Address:");
+    
+   
+    
+    
     // Membuat socket dengan host dan port number yang telah diberikan
     try {
       clientSocket = new Socket(host, portNumber);
