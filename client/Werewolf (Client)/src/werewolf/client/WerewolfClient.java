@@ -12,94 +12,100 @@ import org.json.simple.JSONObject;
 
 /**
  *
- * @author Husni
+ * @author Husni & Adin
  */
-public class WerewolfClient implements Runnable {
+public class WerewolfClient {
 
-  
-  private static Socket clientSocket = null;
-  
-  private static PrintStream os = null;
-  private static BufferedReader is = null;
 
-  private static BufferedReader inputLine = null;
-  private static boolean closed = false;
-  
-  
-public static void main(String[] args) {
-    int portNumber;
-    String host;
-
-    Scanner sc;
-    sc = new Scanner(System.in);
     
-    System.out.println("Server Address:");
-    
-   
-    
-    
-    // Membuat socket dengan host dan port number yang telah diberikan
-    try {
-      clientSocket = new Socket(host, portNumber);
-      inputLine = new BufferedReader(new InputStreamReader(System.in));
-      os = new PrintStream(clientSocket.getOutputStream());
-      is = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-      
-    } catch (UnknownHostException e) {
-      System.err.println("Don't know about host " + host);
-    } catch (IOException e) {
-      System.err.println("Couldn't get I/O for the connection to the host " + host);
-    }
+    public static void main(String[] args) {
+        int pid = 0; // Player ID
+        int portNumber = 0; // Port host
+        String host; // Alamat host
+        String cmd; // Command
+        JSONObject jsonObj; // JSON Object
 
-    /********** SENDING MESSAGE TO SERVER ***********/
-    if (clientSocket != null && os != null && is != null) {
-      try {
+        // Scanner
+        Scanner sc;
+        sc = new Scanner(System.in);
 
-        // Membuat thread yang berfungsi untuk menerima data dari sevever
-        new Thread(new WerewolfClient()).start();
-        
-        // Menuliskan data ke thread
-        while (!closed) {
-            String username = inputLine.readLine();
-            @SuppressWarnings("unchecked")
-            JSONObject message = new JSONObject();
-            message.put("method", "join");
-            message.put("username", username);
-          os.println(message.toJSONString());
+        // Socket etc
+        Socket clientSocket = null;
+        PrintStream os = null;
+        BufferedReader is = null;
+        BufferedReader inputLine = null;
+        boolean closed = false;
+
+        // Input alamat
+        System.out.println("Server Address:");
+        host = sc.next();
+        System.out.println("Port:");
+        portNumber = sc.nextInt();
+
+        // Membuat socket dengan host dan port number yang telah diberikan
+        try {
+          clientSocket = new Socket(host, portNumber);
+          inputLine = new BufferedReader(new InputStreamReader(System.in));
+          os = new PrintStream(clientSocket.getOutputStream());
+          is = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+
+        } catch (UnknownHostException e) {
+          System.err.println("Alamat tidak valid!" + host);
+        } catch (IOException e) {
+          System.err.println("I/O gagal!" + host);
+        }
+
+        do {
+            // Baca command untuk persiapan
+            cmd = sc.next();
+            switch (cmd){
+                case "join":
+                {
+                    System.out.println("Masukkan username:");
+                    String username = sc.next();
+                    jsonObj = new JSONObject();
+                    jsonObj.put("method", "join");
+                    jsonObj.put("username", username);
+                    joinMenu(host,portNumber);
+                }
+                break;
+                default :
+                {
+                    System.out.println("Ketik 'join' untuk bergabung, 'exit' untuk keluar");
+                }
+            }
+        } while (!cmd.equals("exit"));
+      }
+    
+        private static void joinMenu(String host, int port){
+            String cmd;
+            JSONObject jsonObj;
+            Scanner sc = new Scanner(System.in);
+            
+            // TODO: join method
+            System.out.println("Berhasil bergabung di " + host + ":" + port);
+            do {
+                cmd = sc.next();
+                switch (cmd){
+                    case "readyUp":
+                    {
+                        jsonObj = new JSONObject();
+                        jsonObj.put("method", "ready");
+                        System.out.println("Anda siap!");
+                    }
+                    break;
+                    default :
+                    {
+                        System.out.println("Ketik 'leave' untuk keluar");
+                    }
+                }
+            } while (!cmd.equals("leave"));
+            System.out.println("Keluar...");
+            // TODO: leave method
+            
         }
         
-        /*
-         * Close the output stream, close the input stream, close the socket.
-         */
-        
-        os.close();
-        is.close();
-        clientSocket.close();
-      } catch (IOException e) {
-        System.err.println("IOException:  " + e);
-      }
-    }
-  }
-
-  /********** THREAD TO RECEIVE MESSAGE FROM SERVER ***********/
-  public void run() {
-    /*
-     * Keep on reading from the socket 
-     * TODO: Add condition for leaving the connection
-     */
-    String responseLine;
-    try {
-      while ((responseLine = is.readLine()) != null) {
-        System.out.println(responseLine);
-        
-        // TODO: Add condition for leaving the connection
-        if (false)
-          break;
-      }
-      closed = true;
-      
-    } catch (IOException e) {
-      System.err.println("IOException:  " + e);
-    }
-  }
+        private static void gameLoop(){ // Loop utama
+            
+        }
 }
