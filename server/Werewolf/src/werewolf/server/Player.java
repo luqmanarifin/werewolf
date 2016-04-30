@@ -29,6 +29,10 @@ public class Player {
         return username;
     }
     
+    public void reset() {
+      isAlive = 1;
+    }
+    
     public int getId() {
         return id;
     }

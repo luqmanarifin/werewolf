@@ -170,6 +170,11 @@ class WerewolfServerThread extends Thread {
     GC.days = 0;
     GC.isGameStarted = true;
     
+    for(int i = 0; i < GC.MAX_CLIENT; i++) {
+      if(GC.threads[i] == null) continue;
+      GC.players[i].reset();
+    }
+    
     Random random = new Random();
     boolean good = false;
     while(!good) {
@@ -192,6 +197,7 @@ class WerewolfServerThread extends Thread {
       }
       good = (wolf >= 2 && civ >= 4 && wolf != civ); 
     }
+    
     
     JSONObject response = new JSONObject();
     response.put("method", "start");
@@ -234,12 +240,38 @@ class WerewolfServerThread extends Thread {
   /*
    * Dikirimkan oleh server ketika permainan berkahir
    */
-  private void gameOverReq() {
+  private void gameOverReq(int winner) {
     GC.isGameStarted = false;
     JSONObject message = new JSONObject();
     message.put("method", "game_over");
     message.put("winner", "");
     message.put("description", "");
+  }
+  
+  /**
+   * 1 if werewolf win
+   * -1 if civilian win
+   * 0 if none win
+   * @return 
+   */
+  private int isWin() {
+    int wolfAlive = 0, civAlive = 0;
+    for(int i = 0; i < GC.MAX_CLIENT; i++) {
+      if(GC.threads[i] == null) continue;
+      if(GC.players[i].getAlive() == 1) {
+        if(GC.players[i].isWolf) {
+          wolfAlive++;
+        } else {
+          civAlive++;
+        }
+      }
+    }
+    if(wolfAlive == 0) {
+      return -1;
+    } else if(wolfAlive == civAlive) {
+      return 1;
+    }
+    return 0;
   }
   
   /********** THREAD TO RECEIVE MESSAGE FROM CLIENT ***********/
@@ -290,6 +322,10 @@ class WerewolfServerThread extends Thread {
                 break;
             default:
                 break;
+        }
+        int stateWinner = isWin();
+        if(stateWinner != 0) {
+          gameOverReq(stateWinner);
         }
       }
 
