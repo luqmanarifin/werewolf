@@ -22,10 +22,14 @@ public class WerewolfClient implements Runnable{
   static boolean isPlaying = false;
   static boolean isConnected = false;
   static boolean isReceived = false;
+  static boolean isReady = false;
+  
+  static String time = "night";
+  static int days = 0;
 
   String responseLine;
-  BufferedReader is;
-  PrintStream os;
+  static BufferedReader is;
+  static PrintStream os;
   Socket clientSocket;
   DatagramClientThread udpClient = new DatagramClientThread();
   Thread udpThread = new Thread(udpClient);
@@ -41,8 +45,126 @@ public class WerewolfClient implements Runnable{
     return responseLine;
   }
   
+  
+  
+  /***************** RESPONSE TO SERVER ****************/
+  
+  public static void startRes(JSONObject message) {
+    isPlaying = true;
+    
+    JSONObject response = new JSONObject();
+    response.put("status", "ok");
+    
+    os.println(response.toJSONString());
+  }
+  
+  public static void changePhaseRes(JSONObject message) {
+    time = (String) message.get("time");
+    days = ((Long) message.get("days")).intValue();
+    
+    JSONObject response = new JSONObject();
+    response.put("status", "ok");
+
+    os.println(response.toJSONString());
+  }
+  
+  public static void voteNowRes(JSONObject message) {
+    String phase = (String) message.get("phase");
+    
+    if (phase.equals("day")) {
+      voteWerewolfReq();
+    } else {
+      voteCivilianReq();
+    }
+  }
+  
+  
+  
+  /***************** REQUEST TO SERVER ****************/
+  
+  public static void leaveReq() {
+    JSONObject message = new JSONObject();
+    message.put("method", "leave");
+    os.println(message.toJSONString());
+    
+    isConnected = false;
+  }
+  
+  public static void readyReq() {
+    JSONObject message = new JSONObject();
+    message = new JSONObject();
+    message.put("method", "ready");
+    os.println(message.toJSONString());
+    
+    isReady = true;
+  }
+  
+  public static void clientAddressReq() {
+    JSONObject message = new JSONObject();
+    message = new JSONObject();
+    message.put("method", "client_address");
+    os.println(message.toJSONString());
+  }
+  
+  
+  
+   /***************** PAXOS ****************/
+  
+  public static void prepareProposalReq() {
+    
+  }
+  
+  public static void prepareProposalRes() {
+    
+  }
+  
+  public static void acceptProposalReq() {
+    
+  }
+  
+  public static void acceptProposalRes() {
+    
+  }
+  
+  /**
+   * Dikirimkan oleh pemain ke KPU ketika melakukan voting
+   * siapa yang akan dibunuh di malam hari
+   */
+  public static void voteWerewolfReq() {
+    
+  }
+  
+  /**
+   * Dikirimkan oleh pemain ke KPU ketika melakukan voting
+   * siapa yang akan dibunuh di siang hari
+   */
+  public static void voteCivilianReq() {
+    
+  }
+  
+  /**
+   * Dikirimkan oleh KPU ke server pada malam hari ketika semua
+   * pemain telah melakukan voting
+   * 
+   * vote status = 1 jika ada player yang terbunuh
+   * vote status = -1 jika tidak ada keputusan
+   */
+  public static void voteResultCivilianReq() {
+    
+  }
+  
+  /**
+   * Dikirimkan oleh KPU ke server pada siang hari ketika semua
+   * pemain telah melakukan voting
+   * vote status = 1 jika ada player yang terbunuh
+   * vote status = -1 jika tidak ada keputusan
+   */
+  public static void voteResultWerewolfReq() {
+    
+  }
+  
+ 
   public static void main(String[] args) {
-    boolean isReady = false;
 
     int playerId = 0; // Player ID
     int hostPort = 0; // Port host
@@ -121,12 +243,7 @@ public class WerewolfClient implements Runnable{
         switch (cmd) {
           case "ready": {
             if (!isReady) {
-              if (!isReady) {
-                jsonObj = new JSONObject();
-                jsonObj.put("method", "ready");
-                os.println(jsonObj.toJSONString());
-                isReady = true;
-              }
+              readyReq();
             } else {
               System.out.println("Anda sudah siap!");
             }
@@ -134,27 +251,29 @@ public class WerewolfClient implements Runnable{
           break;
           case "getList": {
             if (isPlaying) {
-              jsonObj = new JSONObject();
-              jsonObj.put("method", "client_address");
-              os.println(jsonObj.toJSONString());
+              clientAddressReq();
             }
           }
           break;
           case "voteWerewolf": {
-
+            if (isPlaying) {
+              voteWerewolfReq(); 
+            }
           }
           break;
           case "voteCivilian": {
-
+            if (isPlaying) {
+             voteCivilianReq(); 
+            }
           }
           break;
           case "leave": {
-            isConnected = false;
+            leaveReq();
+            
             is.close();
             os.close();
             clientSocket.close();
             System.out.println("Keluar dari permainan...");
-             
           }
           break;
           default: {

@@ -109,6 +109,8 @@ class WerewolfServerThread extends Thread {
     response.put("description", "waiting for other player to start");
     sendMessage(response);
 
+    GameComponent.players[myPlayerId].isReady = true;
+    
     if (allReady() && GC.connectedPlayer >= 3) {
       startReq();
     }
