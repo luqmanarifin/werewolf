@@ -378,6 +378,7 @@ class WerewolfServerThread extends Thread {
           gameOverReq(stateWinner);
         }
       }
+      System.out.println("Good bye " + myPlayerId);
       GameComponent.threads[myPlayerId] = null;
 
       /*
@@ -392,7 +393,7 @@ class WerewolfServerThread extends Thread {
        */
       
     } catch (IOException e) {
-      System.err.println(e);
+      System.out.println("Good bye " + myPlayerId);
       GameComponent.threads[myPlayerId] = null;
 
       try {
