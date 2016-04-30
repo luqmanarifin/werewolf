@@ -8,6 +8,8 @@ public class Player {
     private String username;
     private int id;
     private int isAlive;
+    private int udpPort;
+    private String udpAddress;
     
     
     public Player() {
@@ -36,6 +38,14 @@ public class Player {
     
     public void die() {
         isAlive = 0;
+    }
+    
+    public String getUdpAddress() {
+        return udpAddress;
+    }
+    
+    public int getUdpPort() {
+        return udpPort;
     }
     
 }

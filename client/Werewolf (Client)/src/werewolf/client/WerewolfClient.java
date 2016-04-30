@@ -23,9 +23,9 @@ public class WerewolfClient {
 
     
     public static void main(String[] args) {
-        long pid = 0; // Player ID
+        int playerId = 0; // Player ID
         int status = 0; // 0 : belum join, 1 : Belum Ready, 2 : Ready, 3 : Start
-        int portNumber = 0; // Port host
+        int hostPort = 0; // Port host
         int udpPort = 0; // Port host
         String udpAddress = null; // Alamat host
         String host = null; // Alamat host
@@ -43,26 +43,29 @@ public class WerewolfClient {
         // Input alamat
         System.out.println("Selamat datang di Werewolf!");
         
-        System.out.println("Server Address: ");
+        System.out.print("Server Address: ");
         host = sc.next();
-        System.out.println("Port TCP:");
-        portNumber = sc.nextInt();
-        System.out.println("Address UDP:");
+        System.out.print("Server Port:");
+        hostPort = sc.nextInt();
+        System.out.print("Address UDP:");
         udpAddress = sc.next();
-        System.out.println("Port UDP:");
+        System.out.print("Port UDP:");
         udpPort = sc.nextInt();
         
         // Membuat socket dengan host dan port number yang telah diberikan
         try {
-          clientSocket = new Socket(host, portNumber);
-          inputLine = new BufferedReader(new InputStreamReader(System.in));
-          os = new PrintStream(clientSocket.getOutputStream());
+            System.out.println("Connecting...");
+            clientSocket = new Socket(host, hostPort);
+            inputLine = new BufferedReader(new InputStreamReader(System.in));
+            os = new PrintStream(clientSocket.getOutputStream());
+            System.out.println("Connected");
           
         } catch (UnknownHostException e) {
-          System.err.println("Alamat tidak valid!" + host);
+            System.err.println("Alamat tidak valid!" + host);
         } catch (IOException e) {
-          System.err.println("I/O gagal!" + host);
+            System.err.println("I/O gagal!" + host);
         }
+        
         serverThread = new WerewolfClientReceiverThread(clientSocket);
         new Thread(serverThread).start();
         
@@ -75,8 +78,9 @@ public class WerewolfClient {
                 case "join":
                 {
                     if (status == 0){
-                        System.out.println("Masukkan username:");
+                        System.out.print("Masukkan username: ");
                         String username = sc.next();
+                        
                         jsonObj = new JSONObject();
                         jsonObj.put("method", "join");
                         jsonObj.put("username", username);
@@ -85,16 +89,16 @@ public class WerewolfClient {
                         os.println(jsonObj.toJSONString());
                         
                         // Ambil response
-                        JSONParser parser = new JSONParser();
-                        try {
-                            synchronized("response"){                                
-                                jsonObj = (JSONObject) parser.parse(serverThread.getResponseLine());
-                            }
-                            pid = (long) jsonObj.get("player_id");
-                            System.out.println("ID : " + pid);
-                        } catch (ParseException ex) {
-                            Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
-                        }
+//                        JSONParser parser = new JSONParser();
+//                        try {
+//                            synchronized("response"){                                
+//                                jsonObj = (JSONObject) parser.parse(serverThread.getResponseLine());
+//                            }
+//                            playerId = ((Long) jsonObj.get("player_id")).intValue();
+//                            System.out.println("ID : " + playerId);
+//                        } catch (ParseException ex) {
+//                            Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
+//                        }
                         
                         status = 1;
                     }
@@ -107,8 +111,9 @@ public class WerewolfClient {
                 {
                     jsonObj = new JSONObject();
                     jsonObj.put("method", "leave");
-                    serverThread.setCommand(jsonObj.toJSONString());
-                    serverThread.run();
+//                    serverThread.setCommand(jsonObj.toJSONString());
+//                    serverThread.run();
+                    os.println(jsonObj.toJSONString());
                     System.out.println("keluar...");
                     status = 0;   
                 }
@@ -120,8 +125,9 @@ public class WerewolfClient {
                         jsonObj = new JSONObject();
                         jsonObj.put("method", "ready");
                         status = 2;
-                        serverThread.setCommand(jsonObj.toJSONString());
-                        serverThread.run();
+//                        serverThread.setCommand(jsonObj.toJSONString());
+//                        serverThread.run();
+                        
                         break;
                     case 0:
                         System.out.println("Anda belum join");
@@ -134,10 +140,13 @@ public class WerewolfClient {
                 break;
                 case "getList":
                 {
-                    jsonObj = new JSONObject();
-                    jsonObj.put("method", "client_address");
-                    serverThread.setCommand(jsonObj.toJSONString());
-                    serverThread.run();
+                    if (status != 0) {
+                        jsonObj = new JSONObject();
+                        jsonObj.put("method", "client_address");
+//                    serverThread.setCommand(jsonObj.toJSONString());
+//                    serverThread.run();
+                        os.println(jsonObj.toJSONString());
+                    }
                 }
                 break;
                 case "voteWerewolf":

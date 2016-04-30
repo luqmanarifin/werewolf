@@ -11,10 +11,5 @@ public class GameComponent {
     
     public static WerewolfServerThread[] threads = new WerewolfServerThread[maxClient];
     public static ArrayList<Player> players = new ArrayList<>();
-    
-    public GameComponent() {
-        for (int i = 0; i < maxClient; i++) {
-            threads[i] = null;
-        }
-    }
+   
 }

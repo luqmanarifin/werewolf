@@ -16,27 +16,27 @@ class WerewolfServerThread extends Thread {
   private BufferedReader is = null;
   private PrintStream os = null;
   private Socket clientSocket = null;
-  private GameComponent gc;
-  private int maxClient;
+  private GameComponent GAMECOMPONENT;
+  private int MAXCLIENT;
 
   public WerewolfServerThread(Socket clientSocket, GameComponent gc) {
     this.clientSocket = clientSocket;
-    this.gc = gc;
-    maxClient = gc.threads.length;
+    this.GAMECOMPONENT = gc;
+    MAXCLIENT = gc.threads.length;
   }
   
   private void broadcastMessage(String message) {
-      for (int i = 0; i < maxClient; i++) {
-          if (gc.threads[i] != null) {
-              gc.threads[i].sendMessage(message);
+      for (int i = 0; i < MAXCLIENT; i++) {
+          if (GAMECOMPONENT.threads[i] != null) {
+              GAMECOMPONENT.threads[i].sendMessage(message);
           }
       }
   }
   
   private void broadcastMessageExcept(String message, int playerId) {
-      for (int i = 0; i < maxClient; i++) {
-          if (gc.threads[i] != null && gc.players.get(i).getId() != playerId) {
-              gc.threads[i].sendMessage(message);
+      for (int i = 0; i < MAXCLIENT; i++) {
+          if (GAMECOMPONENT.threads[i] != null && GAMECOMPONENT.players.get(i).getId() != playerId) {
+              GAMECOMPONENT.threads[i].sendMessage(message);
           }
       }
   }
@@ -53,11 +53,13 @@ class WerewolfServerThread extends Thread {
    */
   private void joinRes(JSONObject message) {
       String username = (String) message.get("username");
-      int playerId = gc.players.size();
+      String udpAddress = (String) message.get("udp_address");
+      int udpPort = ((Long) message.get("udp_port")).intValue();
+      int playerId = GAMECOMPONENT.players.size();
       
       
       // Add new user to player list
-      gc.players.add(new Player(username, playerId));
+      GAMECOMPONENT.players.add(new Player(username, playerId));
       
       JSONObject response = new JSONObject();
       // TODO: Check if username is valid
@@ -65,6 +67,8 @@ class WerewolfServerThread extends Thread {
       if (true) {
         response.put("status", "ok");
         response.put("player_id", playerId);
+        response.put("udp_address", udpAddress);
+        response.put("udp_port", udpPort);
       } 
       // if username is not valid
       else if (false) {
@@ -92,25 +96,20 @@ class WerewolfServerThread extends Thread {
    */
   private void clientAddressRes(JSONObject message) {
       ArrayList<HashMap<String, Object>> clients = new ArrayList<>();
-      for (int i = 0; i < gc.players.size(); i++) {
+      for (int i = 0; i < GAMECOMPONENT.players.size(); i++) {
         HashMap<String, Object> client = new HashMap<>();   
-        client.put("player_id", gc.players.get(i).getId());
-        client.put("is_alive", gc.players.get(i).getAlive());
-        // Dummy address
-        client.put("address", "0.0.0.0");
-        // Dummy port
-        client.put("port", 9999);
-        client.put("username", gc.players.get(i).getUsername());
-        
+        client.put("player_id", GAMECOMPONENT.players.get(i).getId());
+        client.put("is_alive", GAMECOMPONENT.players.get(i).getAlive());
+        client.put("address", GAMECOMPONENT.players.get(i).getUdpAddress());
+        client.put("port", GAMECOMPONENT.players.get(i).getUdpPort());
+        client.put("username", GAMECOMPONENT.players.get(i).getUsername());
         clients.add(client);
       }
       
       JSONObject response = new JSONObject();
       response.put("status", "ok");
       response.put("clients", clients);
-      
       sendMessage(response.toJSONString());
-      
   }
   
   private void prepareProposalRes(JSONObject message) {
@@ -122,7 +121,7 @@ class WerewolfServerThread extends Thread {
       
       if (vote_status == 1) {
           int player_killed = ((Long) message.get("player_killed")).intValue();
-          gc.players.get(player_killed).die();
+          GAMECOMPONENT.players.get(player_killed).die();
       }
       
       JSONObject response = new JSONObject();
@@ -136,7 +135,7 @@ class WerewolfServerThread extends Thread {
 
       if (vote_status == 1) {
           int player_killed = ((Long) message.get("player_killed")).intValue();
-          gc.players.get(player_killed).die();
+          GAMECOMPONENT.players.get(player_killed).die();
       }
 
       JSONObject response = new JSONObject();
@@ -204,9 +203,9 @@ class WerewolfServerThread extends Thread {
        * Clean up. Set the current thread variable to null so that a new client
        * could be accepted by the server.
        */
-      for (int i = 0; i < maxClient; i++) {
-        if (gc.threads[i] == this) {
-          gc.threads[i] = null;
+      for (int i = 0; i < MAXCLIENT; i++) {
+        if (GAMECOMPONENT.threads[i] == this) {
+          GAMECOMPONENT.threads[i] = null;
         }
       }
 
