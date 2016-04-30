@@ -8,138 +8,187 @@ import java.io.PrintStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.Scanner;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.json.simple.JSONObject;
 
 /**
  *
  * @author Husni & Adin
  */
-public class WerewolfClient {
+public class WerewolfClient implements Runnable{
   static boolean isPlaying = false;
+  static boolean isConnected = false;
+  static boolean isReceived = false;
+
+  String responseLine;
+  BufferedReader is;
+  PrintStream os;
+  Socket clientSocket; 
+  
+  public WerewolfClient(Socket socket) throws IOException{
+    clientSocket = socket; 
+    this.is = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+    this.os = new PrintStream(clientSocket.getOutputStream());
+  }
+  
+  public String getResponseLine(){
+    return responseLine;
+  }
   
   public static void main(String[] args) {
-      boolean isReady = false;
-      int playerId = 0; // Player ID
-      int hostPort = 0; // Port host
-      int udpPort = 0; // Port host
-      String udpAddress = null; // Alamat host
-      String host = null; // Alamat host
-      String cmd; // Command
-      JSONObject jsonObj; // JSON Object
-      WerewolfClientThread serverThread;
-      DatagramClientThread udpThread;
-      Socket clientSocket = null;
-      PrintStream os = null;
-      BufferedReader inputLine = null;
+    boolean isReady = false;
 
-      // Scanner
-      Scanner sc;
-      sc = new Scanner(System.in);
+    int playerId = 0; // Player ID
+    int hostPort = 0; // Port host
+    int udpPort = 0; // Port host
+    String udpAddress = null; // Alamat host
+    String host = null; // Alamat host
+    String cmd; // Command
+    JSONObject jsonObj; // JSON Object
+    BufferedReader is;
+    PrintStream os;
+    DatagramClientThread udpClient;
+    WerewolfClient client;
+    Socket clientSocket = null;
 
-      // Input alamat
-      System.out.println("Selamat datang di Werewolf!");
+    // Scanner
+    Scanner sc;
+    sc = new Scanner(System.in);
 
-      System.out.print("Server Address: ");
-      host = sc.next();
-      System.out.print("Server Port:");
-      hostPort = sc.nextInt();
-      System.out.print("Address UDP:");
-      udpAddress = sc.next();
-      System.out.print("Port UDP:");
-      udpPort = sc.nextInt();
+    // Input alamat
+    System.out.println("Selamat datang di Werewolf!");
+    System.out.print("Server Address: ");
+    host = sc.next();
+    System.out.print("Server Port: ");
+    hostPort = sc.nextInt();
+//    System.out.print("Address UDP:");
+//    udpAddress = sc.next();
+//    System.out.print("Port UDP:");
+//    udpPort = sc.nextInt();
 
-      // Membuat socket dengan host dan port number yang telah diberikan
-      try {
-        // Koneksi ke server
-        System.out.println("Connecting...");
-        clientSocket = new Socket(host, hostPort);
-        inputLine = new BufferedReader(new InputStreamReader(System.in));
-        os = new PrintStream(clientSocket.getOutputStream());
-        System.out.println("Connected");
-          
-        // Threads
-        serverThread = new WerewolfClientThread(clientSocket);
-        udpThread = new DatagramClientThread();
-        new Thread(serverThread).start();
-        new Thread(udpThread).start();
+    // Membuat socket dengan host dan port number yang telah diberikan
+    try {
+      // Koneksi ke server
+      System.out.println("Connecting...");
+      clientSocket = new Socket(host, hostPort);
+      is = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+      os = new PrintStream(clientSocket.getOutputStream());
+      isConnected = true;
+      System.out.println("Connected");
+
+      // Threads
+      client = new WerewolfClient(clientSocket);
+      udpClient = new DatagramClientThread();
+      Thread tcpThread = new Thread(client);
+//      Thread udpThread = new Thread(udpClient);
       
-        // Join the game
-        System.out.print("Masukkan username: ");
-        String username = sc.next();
+      tcpThread.start();
+//      udpThread.start();
+      
 
-        jsonObj = new JSONObject();
-        jsonObj.put("method", "join");
-        jsonObj.put("username", username);
-        jsonObj.put("udp_address", udpAddress);
-        jsonObj.put("udp_port", udpPort);
-        os.println(jsonObj.toJSONString());
+      // Join the game
+      System.out.print("Masukkan username: ");
+      String username = sc.next();
 
-      } catch (UnknownHostException e) {
-          System.err.println("Alamat tidak valid!" + host);
-      } catch (IOException e) {
-          System.err.println("I/O gagal!" + host);
+      jsonObj = new JSONObject();
+      jsonObj.put("method", "join");
+      jsonObj.put("username", username);
+      jsonObj.put("udp_address", udpAddress);
+      jsonObj.put("udp_port", udpPort);
+      os.println(jsonObj.toJSONString());
+      
+      while(!isReceived){
+        Thread.sleep(10);
       }
-      
       // Main loop
       do {
-          System.out.print("> ");
-          cmd = sc.next();
-          switch (cmd){
-              case "leave":
-              {
-                if (isReady){
-                  jsonObj = new JSONObject();
-                  jsonObj.put("method", "leave");
-                  os.println(jsonObj.toJSONString());
-                  System.out.println("keluar...");
-                }
-                else {
-                  System.out.println("Anda");
-                }
-              }
-              break;
-              case "readyUp":
-              {
-                if (!isReady){
-                  if (!isPlaying){
-                    jsonObj = new JSONObject();
-                    jsonObj.put("method", "ready");
-                  }
-                }
-                else {
-                  System.out.println("Anda sudah siap!");
-                }       
-              }       
-              break;
-              case "getList":
-              {
-                  if (isPlaying) {
-                      jsonObj = new JSONObject();
-                      jsonObj.put("method", "client_address");
-                      os.println(jsonObj.toJSONString());
-                  }
-              }
-              break;
-              case "voteWerewolf":
-              {
-
-              }
-              break;
-              case "voteCivilian":
-              {
-
-              }
-              break;
-              case "exit":
-              {
-                
-              }
-              break;
-              default :
-              {
-                  System.out.println("Perintah salah!");
-              }
+        // Print status
+        if (isPlaying){
+          System.out.println("Status: Playing");
+        }
+        else {
+          if (isReady){
+            System.out.println("Status: Ready");
           }
-      } while (true);
+          else{
+            System.out.println("Status: Not Ready");
+          }
+        }
+        
+        System.out.print("> ");
+        cmd = sc.next();
+        switch (cmd) {
+          case "ready": {
+            if (!isReady) {
+              if (!isReady) {
+                jsonObj = new JSONObject();
+                jsonObj.put("method", "ready");
+                isReady = true;
+              }
+            } else {
+              System.out.println("Anda sudah siap!");
+            }
+          }
+          break;
+          case "getList": {
+            if (isPlaying) {
+              jsonObj = new JSONObject();
+              jsonObj.put("method", "client_address");
+              os.println(jsonObj.toJSONString());
+            }
+          }
+          break;
+          case "voteWerewolf": {
+
+          }
+          break;
+          case "voteCivilian": {
+
+          }
+          break;
+          case "leave": {
+            isConnected = false;
+            is.close();
+            os.close();
+            clientSocket.close();
+            System.out.println("Keluar dari permainan...");
+             
+          }
+          break;
+          default: {
+            System.out.println("Perintah salah!");
+          }
+        }
+        
+      } while (!cmd.equals("leave"));
+      
+      
+//      udpThread.join();
+    
+    } catch (UnknownHostException e) {
+      System.err.println("Alamat tidak valid!" + host);
+    } catch (IOException e) {
+      System.err.println("I/O gagal!" + host);
+    } catch (InterruptedException ex) {
+      Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
     }
+  }
+  
+  @Override
+    public void run() {
+        try {
+            while (isConnected){
+              responseLine = is.readLine();
+              if (responseLine != null){
+                System.out.println(responseLine);
+                isReceived = true;
+              }
+            }
+
+        } catch (IOException e) {
+          System.out.println("Connection ended");
+        }
+    }
+  
 }

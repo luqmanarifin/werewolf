@@ -107,11 +107,13 @@ class WerewolfServerThread extends Thread {
     JSONObject response = new JSONObject();
     response.put("status", "ok");
     response.put("description", "waiting for other player to start");
-    
+    sendMessage(response);
+
     GC.readyCount++;
     if (GC.readyCount == GC.connectedPlayer && GC.readyCount >= 6) {
       startReq();
     }
+    
   }
   /*
    * Give list of players to client who requested it.

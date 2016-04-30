@@ -23,6 +23,7 @@ public class DatagramClientThread implements Runnable{
   byte[] buf;
 
   public DatagramClientThread() {
+    buf = new byte[4096];
     packet = new DatagramPacket(buf, buf.length);
     try {
       socket = new DatagramSocket();
