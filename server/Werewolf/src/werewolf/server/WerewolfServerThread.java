@@ -18,6 +18,7 @@ class WerewolfServerThread extends Thread {
   private Socket clientSocket = null;
   private GameComponent GAMECOMPONENT;
   private int MAXCLIENT;
+  private int myPlayerId; // Id player yang ditangani oleh thread ini
 
   public WerewolfServerThread(Socket clientSocket, GameComponent gc) {
     this.clientSocket = clientSocket;
@@ -56,7 +57,7 @@ class WerewolfServerThread extends Thread {
       String udpAddress = (String) message.get("udp_address");
       int udpPort = ((Long) message.get("udp_port")).intValue();
       int playerId = GAMECOMPONENT.players.size();
-      
+      myPlayerId = playerId;
       
       // Add new user to player list
       GAMECOMPONENT.players.add(new Player(username, playerId));
@@ -85,9 +86,12 @@ class WerewolfServerThread extends Thread {
   }
   
   private void leaveRes(JSONObject message) {
+      // Remove playe from the list
+      GAMECOMPONENT.players.remove(myPlayerId);
       JSONObject response = new JSONObject();
       response.put("status", "ok");
-      sendMessage(response.toJSONString());      
+      sendMessage(response.toJSONString());
+    
   }
   
   /*
