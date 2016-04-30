@@ -11,7 +11,7 @@ public class Player {
     private int udpPort;
     private String udpAddress;
     public boolean isWolf;
-    
+    public boolean isReady = false;
     
     public Player() {
         this.username = null;
@@ -31,6 +31,7 @@ public class Player {
     
     public void reset() {
       isAlive = 1;
+      isReady = false;
     }
     
     public int getId() {

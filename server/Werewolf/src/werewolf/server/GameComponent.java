@@ -13,7 +13,6 @@ public class GameComponent {
   public static int connectedPlayer = 0;
   
   public static boolean isGameStarted = false;
-  public static int readyCount = 0; // Jumlah player yang ready
   
   public static int remainingVote;
   

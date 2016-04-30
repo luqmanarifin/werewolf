@@ -109,9 +109,7 @@ class WerewolfServerThread extends Thread {
     response.put("description", "waiting for other player to start");
     sendMessage(response);
 
-    GC.readyCount++;
-    System.out.println(GC.readyCount);
-    if (GC.readyCount == GC.connectedPlayer && GC.readyCount >= 3) {
+    if (allReady() && GC.connectedPlayer >= 3) {
       startReq();
     }
     
@@ -334,6 +332,14 @@ class WerewolfServerThread extends Thread {
   private void showDescription(JSONObject object) {
     String message = (String) object.get("description");
     System.out.println("Log : " + message);
+  }
+  
+  private boolean allReady() {
+    for(int i = 0; i < GameComponent.MAX_CLIENT; i++) {
+      if(GameComponent.threads[i] == null) continue;
+      if(!GameComponent.players[i].isReady) return false;
+    }
+    return true;
   }
   
   /********** THREAD TO RECEIVE MESSAGE FROM CLIENT ***********/
