@@ -1,7 +1,6 @@
 package werewolf.server;
 
 import java.io.BufferedReader;
-import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
@@ -83,12 +82,8 @@ class WerewolfServerThread extends Thread {
   
   private void leaveRes(JSONObject message) {
       JSONObject response = new JSONObject();
-      
       response.put("status", "ok");
-      
-      
-      
-      
+      sendMessage(response.toJSONString());      
   }
   
   /*
