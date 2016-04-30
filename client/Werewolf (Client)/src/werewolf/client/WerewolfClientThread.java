@@ -18,7 +18,7 @@ import java.util.logging.Logger;
  *
  * @author adinb
  */
-public class WerewolfClientReceiverThread implements Runnable{
+public class WerewolfClientThread implements Runnable{
     
     
      // Socket etc
@@ -31,14 +31,14 @@ public class WerewolfClientReceiverThread implements Runnable{
     private String responseLine;
     private String cmd;
 
-    public WerewolfClientReceiverThread(Socket socket) {
+    public WerewolfClientThread(Socket socket) {
         clientSocket = socket;
         inputLine = new BufferedReader(new InputStreamReader(System.in));
         try {
             os = new PrintStream(clientSocket.getOutputStream());
             is = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
         } catch (IOException ex) {
-            Logger.getLogger(WerewolfClientReceiverThread.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(WerewolfClientThread.class.getName()).log(Level.SEVERE, null, ex);
         }
        
     }
@@ -54,10 +54,8 @@ public class WerewolfClientReceiverThread implements Runnable{
     @Override
     public void run() {
         try {
-            synchronized("response"){
-                while ((responseLine = is.readLine()) != null) {
-                    System.out.println(responseLine);
-                }
+            while ((responseLine = is.readLine()) != null) {
+                System.out.println(responseLine);
             }
         } catch (IOException e) {
           System.err.println("IOException:  " + e);
