@@ -89,14 +89,14 @@ class WerewolfServerThread extends Thread {
   }
   
   private void leaveRes(JSONObject message) {
-      // Remove playe from the list
-      GC.players[myPlayerId] = null;
-      GC.connectedPlayer--;
-      isLeave = true;
-      
-      JSONObject response = new JSONObject();
-      response.put("status", "ok");
-      sendMessage(response);
+    // Remove playe from the list
+    GC.players[myPlayerId] = null;
+    GC.connectedPlayer--;
+    isLeave = true;
+
+    JSONObject response = new JSONObject();
+    response.put("status", "ok");
+    sendMessage(response);
   }
   
   private void readyRes(JSONObject message) {
@@ -113,22 +113,22 @@ class WerewolfServerThread extends Thread {
    * Give list of players to client who requested it.
    */
   private void clientAddressRes(JSONObject message) {
-      ArrayList<HashMap<String, Object>> clients = new ArrayList<>();
-      for (int i = 0; i < GC.MAX_CLIENT; i++) {
-        if(GC.threads[i] == null) continue;
-        HashMap<String, Object> client = new HashMap<>();   
-        client.put("player_id", GC.players.[i].getId());
-        client.put("is_alive", GC.players.get(i).getAlive());
-        client.put("address", GC.players.get(i).getUdpAddress());
-        client.put("port", GC.players.get(i).getUdpPort());
-        client.put("username", GC.players.get(i).getUsername());
-        clients.add(client);
-      }
-      
-      JSONObject response = new JSONObject();
-      response.put("status", "ok");
-      response.put("clients", clients);
-      sendMessage(response);
+    ArrayList<HashMap<String, Object>> clients = new ArrayList<>();
+    for (int i = 0; i < GC.MAX_CLIENT; i++) {
+      if(GC.threads[i] == null) continue;
+      HashMap<String, Object> client = new HashMap<>();   
+      client.put("player_id", i);
+      client.put("is_alive", GC.players[i].getAlive());
+      client.put("address", GC.players[i].getUdpAddress());
+      client.put("port", GC.players[i].getUdpPort());
+      client.put("username", GC.players[i].getUsername());
+      clients.add(client);
+    }
+
+    JSONObject response = new JSONObject();
+    response.put("status", "ok");
+    response.put("clients", clients);
+    sendMessage(response);
   }
   
   private void prepareProposalRes(JSONObject message) {
