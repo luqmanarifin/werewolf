@@ -15,6 +15,8 @@ public class GameComponent {
   public static boolean isGameStarted = false;
   public static int readyCount = 0; // Jumlah player yang ready
   
+  public static int remainingVote;
+  
   // menandakan malam/siang
   public static boolean isDay = false;
   
