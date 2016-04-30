@@ -110,7 +110,8 @@ class WerewolfServerThread extends Thread {
     sendMessage(response);
 
     GC.readyCount++;
-    if (GC.readyCount == GC.connectedPlayer && GC.readyCount >= 6) {
+    System.out.println(GC.readyCount);
+    if (GC.readyCount == GC.connectedPlayer && GC.readyCount >= 3) {
       startReq();
     }
     
@@ -218,8 +219,9 @@ class WerewolfServerThread extends Thread {
           civ++;
         }
       }
-      good = (wolf >= 2 && civ >= 4 && wolf != civ); 
+      good = (wolf >= 1 && civ >= 2 && wolf != civ); 
     }
+    
     ArrayList<String> listWolf = new ArrayList();
     for(int i = 0; i < GC.MAX_CLIENT; i++) {
       if(GC.threads[i] == null) continue;
@@ -262,7 +264,7 @@ class WerewolfServerThread extends Thread {
     message.put("days", GC.days);
     message.put("description", "Ganti fase");
     
-    sendMessage(message);
+    broadcastMessage(message);
     GC.remainingVote = 2;
     voteNowReq();
   }
@@ -276,7 +278,7 @@ class WerewolfServerThread extends Thread {
     message.put("method", "vote_now");
     message.put("phase", GC.getTime());
     
-    sendMessage(message);
+    broadcastMessage(message);
   }
   
   /*
@@ -289,6 +291,18 @@ class WerewolfServerThread extends Thread {
     String name = winner == 1? "werewolf" : "civilian";
     message.put("winner", name);
     message.put("description", name + " win");
+  }
+  
+  /*
+   * Dikirimkan oleh server ketika KPU terpilih
+   * METHODNYA BELUM KELAR
+   */  
+  private void kpuSelectedReq() {
+    JSONObject message = new JSONObject();
+    message.put("method", "kpu_selected");
+    message.put("kpu_id", 0);
+    
+    broadcastMessage(message);
   }
   
   /**

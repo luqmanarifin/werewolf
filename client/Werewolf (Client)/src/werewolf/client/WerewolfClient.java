@@ -180,20 +180,29 @@ public class WerewolfClient implements Runnable{
       JSONParser parser = new JSONParser();
         try {
             while (isConnected){
+              // Message from server to client
               responseLine = is.readLine();
               if (responseLine != null){
                 System.out.println(responseLine);
                 isReceived = true;
-              }
-              else {
+                
                 try {
-                  obj  = (JSONObject)parser.parse(responseLine);
-                  if (obj.get("method").equals("start")){
-//                    udpThread.start();
-                    isPlaying = true;
+                  obj = (JSONObject) parser.parse(responseLine);
+                  String method = (String) obj.get("method");
+                  
+                  switch(method) {
+                    case "start":
+                      isPlaying = true;
+                    break;
+                    case "change_phase":
+                    break;
+                    case "vote_now":
+                    break;
+                    default:
+                    break;
                   }
-                } catch (ParseException ex) {
-                  Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
+                } catch (Exception e) {
+                
                 }
               }
             }
