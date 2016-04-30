@@ -264,7 +264,7 @@ class WerewolfServerThread extends Thread {
     message.put("days", GC.days);
     message.put("description", "Ganti fase");
     
-    sendMessage(message);
+    broadcastMessage(message);
     GC.remainingVote = 2;
     voteNowReq();
   }
@@ -278,7 +278,7 @@ class WerewolfServerThread extends Thread {
     message.put("method", "vote_now");
     message.put("phase", GC.getTime());
     
-    sendMessage(message);
+    broadcastMessage(message);
   }
   
   /*
@@ -291,6 +291,18 @@ class WerewolfServerThread extends Thread {
     String name = winner == 1? "werewolf" : "civilian";
     message.put("winner", name);
     message.put("description", name + " win");
+  }
+  
+  /*
+   * Dikirimkan oleh server ketika KPU terpilih
+   * METHODNYA BELUM KELAR
+   */  
+  private void kpuSelectedReq() {
+    JSONObject message = new JSONObject();
+    message.put("method", "kpu_selected");
+    message.put("kpu_id", 0);
+    
+    broadcastMessage(message);
   }
   
   /**
