@@ -13,7 +13,7 @@ public class WerewolfServer {
   private static ServerSocket serverSocket = null;
   private static Socket clientSocket = null;
   private static final int maxClient = 6;
-  private static final WerewolfServerThread[] threads = new WerewolfServerThread[maxClient];
+  private static GameComponent gc = new GameComponent();
 
   public static void main(String args[]) {
     int portNumber = 8080;
@@ -31,8 +31,8 @@ public class WerewolfServer {
         clientSocket = serverSocket.accept();
         int i = 0;
         for (i = 0; i < maxClient; i++) {
-          if (threads[i] == null) {
-            (threads[i] = new WerewolfServerThread(clientSocket, threads)).start();
+          if (gc.threads[i] == null) {
+            (gc.threads[i] = new WerewolfServerThread(clientSocket, gc)).start();
             break;
           }
         }
