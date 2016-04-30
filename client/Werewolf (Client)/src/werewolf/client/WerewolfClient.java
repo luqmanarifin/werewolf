@@ -11,6 +11,8 @@ import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 
 /**
  *
@@ -24,7 +26,10 @@ public class WerewolfClient implements Runnable{
   String responseLine;
   BufferedReader is;
   PrintStream os;
-  Socket clientSocket; 
+  Socket clientSocket;
+  DatagramClientThread udpClient = new DatagramClientThread();
+  Thread udpThread = new Thread(udpClient);
+
   
   public WerewolfClient(Socket socket) throws IOException{
     clientSocket = socket; 
@@ -48,7 +53,6 @@ public class WerewolfClient implements Runnable{
     JSONObject jsonObj; // JSON Object
     BufferedReader is;
     PrintStream os;
-    DatagramClientThread udpClient;
     WerewolfClient client;
     Socket clientSocket = null;
 
@@ -79,13 +83,9 @@ public class WerewolfClient implements Runnable{
 
       // Threads
       client = new WerewolfClient(clientSocket);
-      udpClient = new DatagramClientThread();
       Thread tcpThread = new Thread(client);
-//      Thread udpThread = new Thread(udpClient);
       
-      tcpThread.start();
-//      udpThread.start();
-      
+      tcpThread.start();      
 
       // Join the game
       System.out.print("Masukkan username: ");
@@ -124,6 +124,7 @@ public class WerewolfClient implements Runnable{
               if (!isReady) {
                 jsonObj = new JSONObject();
                 jsonObj.put("method", "ready");
+                os.println(jsonObj.toJSONString());
                 isReady = true;
               }
             } else {
@@ -163,9 +164,7 @@ public class WerewolfClient implements Runnable{
         
       } while (!cmd.equals("leave"));
       
-      
-//      udpThread.join();
-    
+          
     } catch (UnknownHostException e) {
       System.err.println("Alamat tidak valid!" + host);
     } catch (IOException e) {
@@ -177,12 +176,25 @@ public class WerewolfClient implements Runnable{
   
   @Override
     public void run() {
+      JSONObject obj;
+      JSONParser parser = new JSONParser();
         try {
             while (isConnected){
               responseLine = is.readLine();
               if (responseLine != null){
                 System.out.println(responseLine);
                 isReceived = true;
+              }
+              else {
+                try {
+                  obj  = (JSONObject)parser.parse(responseLine);
+                  if (obj.get("method").equals("start")){
+                    udpThread.start();
+                    isPlaying = true;
+                  }
+                } catch (ParseException ex) {
+                  Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
+                }
               }
             }
 

@@ -338,7 +338,7 @@ class WerewolfServerThread extends Thread {
             Object obj = parser.parse(line);
             message = (JSONObject) obj;
         } catch (ParseException e) {
-            System.err.println(e);
+            
             break;
         }
         
@@ -394,7 +394,7 @@ class WerewolfServerThread extends Thread {
        * could be accepted by the server.
        */
       
-    } catch (IOException e) {
+    } catch (Exception e) {
       System.out.println("Good bye " + myPlayerId);
       GameComponent.threads[myPlayerId] = null;
 
