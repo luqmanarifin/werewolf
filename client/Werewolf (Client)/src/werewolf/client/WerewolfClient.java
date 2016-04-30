@@ -184,16 +184,15 @@ public class WerewolfClient implements Runnable{
               if (responseLine != null){
                 System.out.println(responseLine);
                 isReceived = true;
-              }
-              else {
+                
                 try {
-                  obj  = (JSONObject)parser.parse(responseLine);
-                  if (obj.get("method").equals("start")){
-                    udpThread.start();
+                  obj = (JSONObject) parser.parse(responseLine);
+                  if (obj.get("method").equals("start")) {
+                    // udpThread.start();
                     isPlaying = true;
                   }
-                } catch (ParseException ex) {
-                  Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
+                } catch (Exception ex) {
+                
                 }
               }
             }

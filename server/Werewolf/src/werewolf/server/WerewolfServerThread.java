@@ -110,7 +110,8 @@ class WerewolfServerThread extends Thread {
     sendMessage(response);
 
     GC.readyCount++;
-    if (GC.readyCount == GC.connectedPlayer && GC.readyCount >= 6) {
+    System.out.println(GC.readyCount);
+    if (GC.readyCount == GC.connectedPlayer && GC.readyCount >= 3) {
       startReq();
     }
     
@@ -218,8 +219,9 @@ class WerewolfServerThread extends Thread {
           civ++;
         }
       }
-      good = (wolf >= 2 && civ >= 4 && wolf != civ); 
+      good = (wolf >= 1 && civ >= 2 && wolf != civ); 
     }
+    
     ArrayList<String> listWolf = new ArrayList();
     for(int i = 0; i < GC.MAX_CLIENT; i++) {
       if(GC.threads[i] == null) continue;
