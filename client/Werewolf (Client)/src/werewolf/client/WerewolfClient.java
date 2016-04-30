@@ -189,7 +189,7 @@ public class WerewolfClient implements Runnable{
                 try {
                   obj  = (JSONObject)parser.parse(responseLine);
                   if (obj.get("method").equals("start")){
-                    udpThread.start();
+//                    udpThread.start();
                     isPlaying = true;
                   }
                 } catch (ParseException ex) {
