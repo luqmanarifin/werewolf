@@ -20,6 +20,7 @@ public class WerewolfClient {
     
     public static void main(String[] args) {
         int pid = 0; // Player ID
+        int status = 0; // 0 : belum join, 1 : Belum Ready, 2 : Ready
         int portNumber = 0; // Port host
         String host; // Alamat host
         String cmd; // Command
@@ -54,24 +55,48 @@ public class WerewolfClient {
         } catch (IOException e) {
           System.err.println("I/O gagal!" + host);
         }
-
+        
+        
+        // Main loop
         do {
             // Baca command untuk persiapan
             cmd = sc.next();
             switch (cmd){
                 case "join":
                 {
-                    System.out.println("Masukkan username:");
-                    String username = sc.next();
-                    jsonObj = new JSONObject();
-                    jsonObj.put("method", "join");
-                    jsonObj.put("username", username);
-                    joinMenu(host,portNumber);
+                    if (status == 0){
+                        System.out.println("Masukkan username:");
+                        String username = sc.next();
+                        jsonObj = new JSONObject();
+                        jsonObj.put("method", "join");
+                        jsonObj.put("username", username);
+                        status = 1;
+                    }
+                    else {
+                        System.out.println("Anda sudah masuk!");
+                    }
                 }
                 break;
+                case "readyUp":
+                    {
+                switch (status) {
+                    case 1:
+                        jsonObj = new JSONObject();
+                        jsonObj.put("method", "ready");
+                        // Send method
+                        break;
+                    case 0:
+                        System.out.println("Anda belum join");
+                        break;
+                    default:
+                        System.out.println("Anda sudah siap!");
+                        break;
+                }
+                    }
+                    break;
                 default :
                 {
-                    System.out.println("Ketik 'join' untuk bergabung, 'exit' untuk keluar");
+                    System.out.println("Perintah salah!");
                 }
             }
         } while (!cmd.equals("exit"));
@@ -87,13 +112,7 @@ public class WerewolfClient {
             do {
                 cmd = sc.next();
                 switch (cmd){
-                    case "readyUp":
-                    {
-                        jsonObj = new JSONObject();
-                        jsonObj.put("method", "ready");
-                        System.out.println("Anda siap!");
-                    }
-                    break;
+                    
                     default :
                     {
                         System.out.println("Ketik 'leave' untuk keluar");
