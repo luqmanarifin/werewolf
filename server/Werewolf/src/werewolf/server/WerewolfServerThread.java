@@ -8,6 +8,8 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Random;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -28,7 +30,7 @@ class WerewolfServerThread extends Thread {
   }
   
   private void broadcastMessage(JSONObject message) {
-      for (int i = 0; i < MAXCLIENT; i++) {
+      for (int i = 0; i < GC.MAX_CLIENT; i++) {
           if (GC.threads[i] != null) {
               GC.threads[i].sendMessage(message);
           }
@@ -36,8 +38,8 @@ class WerewolfServerThread extends Thread {
   }
   
   private void broadcastMessageExcept(JSONObject message, int playerId) {
-      for (int i = 0; i < MAXCLIENT; i++) {
-          if (GC.threads[i] != null && GC.players.get(i).getId() != playerId) {
+      for (int i = 0; i < GC.MAX_CLIENT; i++) {
+          if (GC.threads[i] != null && i != playerId) {
               GC.threads[i].sendMessage(message);
           }
       }
@@ -61,6 +63,8 @@ class WerewolfServerThread extends Thread {
       
       boolean usernameValid = true;
       for(int i = 0; i < GC.MAX_CLIENT; i++) {
+        if(GC.threads[i] == null || i == myPlayerId) continue;
+        System.out.println(i + " " + username);
         if(username.equals(GC.players[i].getUsername())) {
           usernameValid = false;
           break;
@@ -131,36 +135,18 @@ class WerewolfServerThread extends Thread {
     sendMessage(response);
   }
   
-  private void prepareProposalRes(JSONObject message) {
-      
-  }
-  
-  private void voteResultWerewolfRes(JSONObject message) {
+  private void voteResultRes(JSONObject message) {
       int vote_status = ((Long) message.get("vote_status")).intValue();
       
       if (vote_status == 1) {
           int player_killed = ((Long) message.get("player_killed")).intValue();
-          GC.players.get(player_killed).die();
+          GC.players[player_killed].die();
       }
       
       JSONObject response = new JSONObject();
       response.put("status", "ok");
       response.put("description", "");
       sendMessage(response);
-  }
-  
-  private void voteResultCivilianRes(JSONObject message) {
-      int vote_status = ((Long) message.get("vote_status")).intValue();
-
-      if (vote_status == 1) {
-          int player_killed = ((Long) message.get("player_killed")).intValue();
-          GC.players.get(player_killed).die();
-      }
-
-      JSONObject response = new JSONObject();
-      response.put("status", "ok");
-      response.put("description", "");
-      sendMessage(response); 
   }
   
   
@@ -197,14 +183,30 @@ class WerewolfServerThread extends Thread {
       }
       good = (wolf >= 2 && civ >= 4 && wolf != civ); 
     }
+    ArrayList<String> listWolf = new ArrayList();
+    for(int i = 0; i < GC.MAX_CLIENT; i++) {
+      if(GC.threads[i] == null) continue;
+      if(GC.players[i].isWolf) {
+        listWolf.add(GC.players[i].getUsername());
+      }
+    }
     
-    
-    JSONObject response = new JSONObject();
-    response.put("method", "start");
-    response.put("time", GC.getTime());
-    response.put("role", "");
-    response.put("friend", "");
-    response.put("description", "game is started");
+    for(int i = 0; i < GC.MAX_CLIENT; i++) {
+      if(GC.threads[i] == null) continue;
+      JSONObject response = new JSONObject();
+      response.put("method", "start");
+      response.put("time", GC.getTime());
+      response.put("description", "game is started");
+      
+      if(GC.players[i].isWolf) {
+        response.put("role", "werewolf");
+        response.put("friend", listWolf);
+      } else {
+        response.put("role", "civilian");
+        response.put("friend", "");
+      }
+      GC.threads[i].sendMessage(response);
+    }
   }
   
   /*
@@ -309,16 +311,13 @@ class WerewolfServerThread extends Thread {
             case "client_address":
                 clientAddressRes(message);
                 break;
-            case "prepare_proposal":
-                prepareProposalRes(message);
-                break;
             case "vote_result_werewolf":
                 // Flow: KPU -> server
-                voteResultWerewolfRes(message);
+                voteResultRes(message);
                 break;
             case "vote_result_civilian":
                 // Flow: KPU -> server
-                voteResultCivilianRes(message);
+                voteResultRes(message);
                 break;
             default:
                 break;
@@ -328,12 +327,7 @@ class WerewolfServerThread extends Thread {
           gameOverReq(stateWinner);
         }
       }
-
-      /*
-       * Clean up. Set the current thread variable to null so that a new client
-       * could be accepted by the server.
-       */
-      GC.threads[myPlayerId] = null;
+      GameComponent.threads[myPlayerId] = null;
 
       /*
        * Close the output stream, close the input stream, close the socket.
@@ -341,9 +335,25 @@ class WerewolfServerThread extends Thread {
       is.close();
       os.close();
       clientSocket.close();
+      /*
+       * Clean up. Set the current thread variable to null so that a new client
+       * could be accepted by the server.
+       */
       
     } catch (IOException e) {
-        System.err.println(e);
+      System.err.println(e);
+      GameComponent.threads[myPlayerId] = null;
+
+      try {
+        /*
+        * Close the output stream, close the input stream, close the socket.
+        */
+        is.close();
+        os.close();
+        clientSocket.close();
+      } catch (IOException ex) {
+        Logger.getLogger(WerewolfServerThread.class.getName()).log(Level.SEVERE, null, ex);
+      }
     }
   }
 }
