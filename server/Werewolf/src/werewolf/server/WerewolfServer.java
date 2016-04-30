@@ -12,8 +12,7 @@ import java.net.Socket;
 public class WerewolfServer {
   private static ServerSocket serverSocket = null;
   private static Socket clientSocket = null;
-  private static final int MAXCLIENT = 6;
-  private static final GameComponent GAMECOMPONENT = new GameComponent();
+  private static final GameComponent GAME_COMPONENT = new GameComponent();
 
   public static void main(String args[]) {
     int portNumber = 8080;
@@ -30,13 +29,13 @@ public class WerewolfServer {
       try {
         clientSocket = serverSocket.accept();
         int i = 0;
-        for (i = 0; i < MAXCLIENT; i++) {
+        for (i = 0; i < GAME_COMPONENT.MAX_CLIENT; i++) {
           if (GameComponent.threads[i] == null) {
-            (GameComponent.threads[i] = new WerewolfServerThread(clientSocket, GAMECOMPONENT)).start();
+            (GameComponent.threads[i] = new WerewolfServerThread(clientSocket, GAME_COMPONENT, i)).start();
             break;
           }
         }
-        if (i == MAXCLIENT) {
+        if (i == GAME_COMPONENT.MAX_CLIENT) {
           PrintStream os = new PrintStream(clientSocket.getOutputStream());
           os.println("Server too busy. Try later.");
           os.close();

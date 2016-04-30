@@ -10,6 +10,7 @@ public class Player {
     private int isAlive;
     private int udpPort;
     private String udpAddress;
+    public boolean isWolf;
     
     
     public Player() {
@@ -48,4 +49,7 @@ public class Player {
         return udpPort;
     }
     
+    public String getRole() {
+      return isWolf? "werewolf" : "civilian";
+    }
 }

@@ -7,6 +7,7 @@ import java.io.PrintStream;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Random;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -16,39 +17,38 @@ class WerewolfServerThread extends Thread {
   private BufferedReader is = null;
   private PrintStream os = null;
   private Socket clientSocket = null;
-  private GameComponent GAMECOMPONENT;
-  private int MAXCLIENT;
+  private GameComponent GC;
+  private boolean isLeave = false;
   private int myPlayerId; // Id player yang ditangani oleh thread ini
 
-  public WerewolfServerThread(Socket clientSocket, GameComponent gc) {
+  public WerewolfServerThread(Socket clientSocket, GameComponent gc, int playerId) {
     this.clientSocket = clientSocket;
-    this.GAMECOMPONENT = gc;
-    MAXCLIENT = gc.threads.length;
+    this.GC = gc;
+    myPlayerId = playerId;
   }
   
-  private void broadcastMessage(String message) {
+  private void broadcastMessage(JSONObject message) {
       for (int i = 0; i < MAXCLIENT; i++) {
-          if (GAMECOMPONENT.threads[i] != null) {
-              GAMECOMPONENT.threads[i].sendMessage(message);
+          if (GC.threads[i] != null) {
+              GC.threads[i].sendMessage(message);
           }
       }
   }
   
-  private void broadcastMessageExcept(String message, int playerId) {
+  private void broadcastMessageExcept(JSONObject message, int playerId) {
       for (int i = 0; i < MAXCLIENT; i++) {
-          if (GAMECOMPONENT.threads[i] != null && GAMECOMPONENT.players.get(i).getId() != playerId) {
-              GAMECOMPONENT.threads[i].sendMessage(message);
+          if (GC.threads[i] != null && GC.players.get(i).getId() != playerId) {
+              GC.threads[i].sendMessage(message);
           }
       }
   }
   
-  private void sendMessage(String message) {
-      os.println(message);
+  private void sendMessage(JSONObject message) {
+      os.println(message.toJSONString());
   }
 
   /********** RESPONSE METHOD FROM SERVER TO CLIENT ***********/
-  
-  
+ 
   /*
    * Add user to player list if username is valid
    */
@@ -56,64 +56,79 @@ class WerewolfServerThread extends Thread {
       String username = (String) message.get("username");
       String udpAddress = (String) message.get("udp_address");
       int udpPort = ((Long) message.get("udp_port")).intValue();
-      int playerId = GAMECOMPONENT.players.size();
-      myPlayerId = playerId;
-      
-      // Add new user to player list
-      GAMECOMPONENT.players.add(new Player(username, playerId));
       
       JSONObject response = new JSONObject();
-      // TODO: Check if username is valid
-      // If username is valid
-      if (true) {
-        response.put("status", "ok");
-        response.put("player_id", playerId);
-        response.put("udp_address", udpAddress);
-        response.put("udp_port", udpPort);
-      } 
-      // if username is not valid
-      else if (false) {
-          response.put("status", "fail");
-          response.put("description", "user exists");
+      
+      boolean usernameValid = true;
+      for(int i = 0; i < GC.MAX_CLIENT; i++) {
+        if(username.equals(GC.players[i].getUsername())) {
+          usernameValid = false;
+          break;
+        }
       }
-      // if game is curently runing
-      else {
+      
+      if(GC.isGameStarted) {
           response.put("status", "fail");
           response.put("description", "please wait, game is currently running");
+      } else {
+        if (usernameValid) {
+          response.put("status", "ok");
+          response.put("player_id", myPlayerId);
+          response.put("udp_address", udpAddress);
+          response.put("udp_port", udpPort);
+          
+          // Add new user to player list
+          GC.players[myPlayerId] = new Player(username, myPlayerId);
+          GC.connectedPlayer++;
+        } else  {
+            response.put("status", "fail");
+            response.put("description", "user exists");
+        }
       }
-        
-      sendMessage(response.toJSONString());
+      sendMessage(response);
   }
   
   private void leaveRes(JSONObject message) {
       // Remove playe from the list
-      GAMECOMPONENT.players.remove(myPlayerId);
+      GC.players[myPlayerId] = null;
+      GC.connectedPlayer--;
+      isLeave = true;
+      
       JSONObject response = new JSONObject();
       response.put("status", "ok");
-      sendMessage(response.toJSONString());
-    
+      sendMessage(response);
   }
   
+  private void readyRes(JSONObject message) {
+    JSONObject response = new JSONObject();
+    response.put("status", "ok");
+    response.put("description", "waiting for other player to start");
+    
+    GC.readyCount++;
+    if (GC.readyCount == GC.connectedPlayer && GC.readyCount >= 6) {
+      startReq();
+    }
+  }
   /*
    * Give list of players to client who requested it.
-   * TODO: get user's port and address
    */
   private void clientAddressRes(JSONObject message) {
       ArrayList<HashMap<String, Object>> clients = new ArrayList<>();
-      for (int i = 0; i < GAMECOMPONENT.players.size(); i++) {
+      for (int i = 0; i < GC.MAX_CLIENT; i++) {
+        if(GC.threads[i] == null) continue;
         HashMap<String, Object> client = new HashMap<>();   
-        client.put("player_id", GAMECOMPONENT.players.get(i).getId());
-        client.put("is_alive", GAMECOMPONENT.players.get(i).getAlive());
-        client.put("address", GAMECOMPONENT.players.get(i).getUdpAddress());
-        client.put("port", GAMECOMPONENT.players.get(i).getUdpPort());
-        client.put("username", GAMECOMPONENT.players.get(i).getUsername());
+        client.put("player_id", GC.players.[i].getId());
+        client.put("is_alive", GC.players.get(i).getAlive());
+        client.put("address", GC.players.get(i).getUdpAddress());
+        client.put("port", GC.players.get(i).getUdpPort());
+        client.put("username", GC.players.get(i).getUsername());
         clients.add(client);
       }
       
       JSONObject response = new JSONObject();
       response.put("status", "ok");
       response.put("clients", clients);
-      sendMessage(response.toJSONString());
+      sendMessage(response);
   }
   
   private void prepareProposalRes(JSONObject message) {
@@ -125,13 +140,13 @@ class WerewolfServerThread extends Thread {
       
       if (vote_status == 1) {
           int player_killed = ((Long) message.get("player_killed")).intValue();
-          GAMECOMPONENT.players.get(player_killed).die();
+          GC.players.get(player_killed).die();
       }
       
       JSONObject response = new JSONObject();
       response.put("status", "ok");
       response.put("description", "");
-      sendMessage(response.toJSONString());
+      sendMessage(response);
   }
   
   private void voteResultCivilianRes(JSONObject message) {
@@ -139,16 +154,93 @@ class WerewolfServerThread extends Thread {
 
       if (vote_status == 1) {
           int player_killed = ((Long) message.get("player_killed")).intValue();
-          GAMECOMPONENT.players.get(player_killed).die();
+          GC.players.get(player_killed).die();
       }
 
       JSONObject response = new JSONObject();
       response.put("status", "ok");
       response.put("description", "");
-      sendMessage(response.toJSONString()); 
+      sendMessage(response); 
   }
   
   
+  /********** REQUEST METHOD FROM SERVER TO CLIENT ***********/
+  private void startReq() {
+    GC.isDay = false;
+    GC.days = 0;
+    GC.isGameStarted = true;
+    
+    Random random = new Random();
+    boolean good = false;
+    while(!good) {
+      for(int i = 0; i < GC.MAX_CLIENT; i++) {
+        if(GC.threads[i] == null) continue;
+        if(random.nextDouble() < (double) 1 / 3) {
+          GC.players[i].isWolf = false; 
+        } else {
+          GC.players[i].isWolf = true; 
+        }
+      }
+      int wolf = 0, civ = 0;
+      for(int i = 0; i < GC.MAX_CLIENT; i++) {
+        if(GC.threads[i] == null) continue;
+        if(GC.players[i].isWolf) {
+          wolf++;
+        } else {
+          civ++;
+        }
+      }
+      good = (wolf >= 2 && civ >= 4 && wolf != civ); 
+    }
+    
+    JSONObject response = new JSONObject();
+    response.put("method", "start");
+    response.put("time", GC.getTime());
+    response.put("role", "");
+    response.put("friend", "");
+    response.put("description", "game is started");
+  }
+  
+  /*
+   * Dikirimkan oleh server kepada seluruh client jika ada
+   * perubahan waktu
+   */
+  private void changePhaseReq() {
+    if(!GC.isDay) {
+      GC.days++;
+    }
+    GC.isDay = !GC.isDay;
+    
+    JSONObject message = new JSONObject();
+    message.put("method", "change_phase");
+    message.put("time", GC.getTime());
+    message.put("days", GC.days);
+    message.put("description", "Ganti fase");
+    
+    sendMessage(message);
+  }
+  
+  /*
+   * Dikirimkan oleh server kepada seluruh client ketika
+   * akan dilakukan voting pemain yang akan dibunuh
+   */
+  private void voteNowReq() {
+    JSONObject message = new JSONObject();
+    message.put("method", "vote_now");
+    message.put("phase", "");
+    
+  }
+  
+  /*
+   * Dikirimkan oleh server ketika permainan berkahir
+   */
+  private void gameOverReq() {
+    GC.isGameStarted = false;
+    JSONObject message = new JSONObject();
+    message.put("method", "game_over");
+    message.put("winner", "");
+    message.put("description", "");
+  }
   
   /********** THREAD TO RECEIVE MESSAGE FROM CLIENT ***********/
   public void run() {
@@ -157,7 +249,7 @@ class WerewolfServerThread extends Thread {
       is = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
       os = new PrintStream(clientSocket.getOutputStream());
       
-      while (true) {
+      while (!isLeave) {
         String line = is.readLine();
         
         JSONObject message = new JSONObject();
@@ -172,34 +264,32 @@ class WerewolfServerThread extends Thread {
         
         String method = (String) message.get("method");
         
-          switch (method) {
-              case "join":
-                  joinRes(message);
-                  break;
-              case "leave":
-                  leaveRes(message);
-                  break;
-              case "client_address":
-                  clientAddressRes(message);
-                  break;
-              case "prepare_proposal":
-                  prepareProposalRes(message);
-                  break;
-              case "vote_result_werewolf":
-                  // Flow: KPU -> server
-                  voteResultWerewolfRes(message);
-                  break;
-              case "vote_result_civilian":
-                  // Flow: KPU -> server
-                  voteResultCivilianRes(message);
-                  break;
-              default:
-                  break;
-          }
-        
-        // TODO: Add condition for leaving the connection
-        if (false) {
-            break;
+        switch (method) {
+            case "join":
+                joinRes(message);
+                break;
+            case "leave":
+                leaveRes(message);
+                break;
+            case "ready":
+                readyRes(message);
+                break;
+            case "client_address":
+                clientAddressRes(message);
+                break;
+            case "prepare_proposal":
+                prepareProposalRes(message);
+                break;
+            case "vote_result_werewolf":
+                // Flow: KPU -> server
+                voteResultWerewolfRes(message);
+                break;
+            case "vote_result_civilian":
+                // Flow: KPU -> server
+                voteResultCivilianRes(message);
+                break;
+            default:
+                break;
         }
       }
 
@@ -207,11 +297,7 @@ class WerewolfServerThread extends Thread {
        * Clean up. Set the current thread variable to null so that a new client
        * could be accepted by the server.
        */
-      for (int i = 0; i < MAXCLIENT; i++) {
-        if (GAMECOMPONENT.threads[i] == this) {
-          GAMECOMPONENT.threads[i] = null;
-        }
-      }
+      GC.threads[myPlayerId] = null;
 
       /*
        * Close the output stream, close the input stream, close the socket.
