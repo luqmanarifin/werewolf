@@ -287,6 +287,26 @@ public class WerewolfClient implements Runnable{
     
   }
   
+  /**
+   * Dikirimkan oleh KPU ke server pada malam hari ketika semua pemain telah
+   * melakukan voting
+   *
+   * vote status = 1 jika ada player yang terbunuh vote status = -1 jika tidak
+   * ada keputusan
+   */
+  public static void voteResultCivilianReq() {
+
+  }
+
+  /**
+   * Dikirimkan oleh KPU ke server pada siang hari ketika semua pemain telah
+   * melakukan voting vote status = 1 jika ada player yang terbunuh vote status
+   * = -1 jika tidak ada keputusan
+   */
+  public static void voteResultWerewolfReq() {
+
+  }
+  
    /***************** CLIENT TO CLIENT REQUEST & RESPONSE ****************/
   
   public static void prepareProposalReq() {
@@ -331,27 +351,6 @@ public class WerewolfClient implements Runnable{
   }
   
   public static void voteCivilianRes() {
-    
-  }
-  
-  /**
-   * Dikirimkan oleh KPU ke server pada malam hari ketika semua
-   * pemain telah melakukan voting
-   * 
-   * vote status = 1 jika ada player yang terbunuh
-   * vote status = -1 jika tidak ada keputusan
-   */
-  public static void voteResultCivilianReq() {
-    
-  }
-  
-  /**
-   * Dikirimkan oleh KPU ke server pada siang hari ketika semua
-   * pemain telah melakukan voting
-   * vote status = 1 jika ada player yang terbunuh
-   * vote status = -1 jika tidak ada keputusan
-   */
-  public static void voteResultWerewolfReq() {
     
   }
   
