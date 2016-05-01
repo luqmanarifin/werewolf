@@ -33,12 +33,14 @@ public class WerewolfClient implements Runnable{
   static boolean isReady = false;
   static int days = 0;
   static String time = "night";
+  static boolean canVote = false;
   
   static String role = null;
   static ArrayList<String> friends;
   static ArrayList<Player> players;
   static Player kpu = null;
   static boolean amIProposer = false;
+  static boolean amIKpu = false;
   
   // IO something
   static Scanner sc;
@@ -168,7 +170,7 @@ public class WerewolfClient implements Runnable{
     
   }
   
-   /***************** PAXOS ****************/
+   /***************** CLIENT TO CLIENT REQUEST & RESPONSE ****************/
   
   public static void prepareProposalReq() {
     
@@ -194,11 +196,19 @@ public class WerewolfClient implements Runnable{
     
   }
   
+  public static void voteWerewolfRes() {
+    
+  }
+  
   /**
    * Dikirimkan oleh pemain ke KPU ketika melakukan voting
    * siapa yang akan dibunuh di siang hari
    */
   public static void voteCivilianReq() {
+    
+  }
+  
+  public static void voteCivilianRes() {
     
   }
   
@@ -346,11 +356,6 @@ public class WerewolfClient implements Runnable{
     } catch (ParseException ex) {
       Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
     }
-  }
-  
-  
-  private void handleOK(JSONObject obj) {
-    String client = (String) obj.get("client");
   }
   
   @Override
