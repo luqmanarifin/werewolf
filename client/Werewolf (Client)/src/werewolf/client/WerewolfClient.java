@@ -121,12 +121,10 @@ public class WerewolfClient implements Runnable{
         switch (cmd) {
           case "ready": {
             if (!isReady) {
-              if (!isReady) {
-                jsonObj = new JSONObject();
-                jsonObj.put("method", "ready");
-                os.println(jsonObj.toJSONString());
-                isReady = true;
-              }
+              jsonObj = new JSONObject();
+              jsonObj.put("method", "ready");
+              os.println(jsonObj.toJSONString());
+              isReady = true;
             } else {
               System.out.println("Anda sudah siap!");
             }
