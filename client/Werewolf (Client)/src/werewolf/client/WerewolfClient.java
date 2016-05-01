@@ -11,6 +11,8 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Scanner;
 import java.util.logging.Level;
@@ -28,6 +30,8 @@ public class WerewolfClient implements Runnable{
   static boolean isConnected = false;
   static boolean isReceived = false;
   
+  static final int MAX_CLIENT = 10;
+  
   // game variable
   static boolean isPlaying = false;
   static boolean isReady = false;
@@ -39,8 +43,10 @@ public class WerewolfClient implements Runnable{
   static ArrayList<String> friends;
   static ArrayList<Player> players;
   static Player kpu = null;
+  static Player me = null;
   static boolean amIProposer = false;
   static boolean amIKpu = false;
+  static int[] votes = new int[MAX_CLIENT];
   
   // IO something
   static Scanner sc;
@@ -49,7 +55,7 @@ public class WerewolfClient implements Runnable{
   static PrintStream os;
   
   // socket something
-  Socket clientSocket;
+  static Socket clientSocket;
   static DatagramReceiverThread udpClient;
   Thread udpThread = new Thread(udpClient);
 
@@ -88,52 +94,94 @@ public class WerewolfClient implements Runnable{
     
   }
   
+  public static void sendToAll(JSONObject message) {
+    for(Player p : players) sendUDPMessage(message, p.udpAddress, p.udpPort);
+  }
+  
   /***************** RESPONSE FROM SERVER ****************/
   
-  public static void kpuSelectedRes(JSONObject message) {
+  public static void sendOK() {
+    JSONObject response = new JSONObject();
+    response.put("status", "ok");
+    os.println(response.toJSONString());
     
+    sendOK();
+  }
+  
+  public static void kpuSelectedRes(JSONObject message) {
+    int kpu_id = ((Long)message.get("kpu_id")).intValue();
+    
+    for(Player p : players) {
+      if(p.id == kpu_id) {
+        kpu = p;
+      }
+    }
+    if(kpu.id == me.id) {
+      amIKpu = true;
+      for(int i = 0; i < MAX_CLIENT; i++) votes[i] = 0;
+    }
+    
+    sendOK();
   }
   
   public static void startRes(JSONObject message) {
+    isPlaying = true;
+    isReady = false;
+    days = 0;
     time = (String) message.get("time");
+    canVote = false;
+    
     role = (String) message.get("role");
     friends = new ArrayList<String>();
     JSONArray arr = (JSONArray) message.get("friend");
-    Iterator i = arr.iterator();
-    while (i.hasNext()) {
-//                        friends.add((String)i.next());
-//                        System.out.println("Teman: " + (String)arr.iterator().next());
+    Iterator it = arr.iterator();
+    while (it.hasNext()) {
+      String friend = (String) it.next();
+      friends.add(friend);
+      System.out.println("Teman: " + friend);
     }
     
-    isPlaying = true;
-    
-    JSONObject response = new JSONObject();
-    response.put("status", "ok");
-    
-    os.println(response.toJSONString());
+    sendOK();
+    clientAddressReq();
   }
   
   public static void changePhaseRes(JSONObject message) {
     time = (String) message.get("time");
     days = ((Long) message.get("days")).intValue();
-    JSONObject response = new JSONObject();
-    response.put("status", "ok");
-
-    os.println(response.toJSONString());
+    
+    sendOK();
   }
   
   public static void voteNowRes(JSONObject message) {
-    String phase = (String) message.get("phase");
+    time = (String) message.get("phase");
     
-    if (phase.equals("day")) {
-      voteWerewolfReq();
-    } else {
-      voteCivilianReq();
+    if(me.isAlive == 0) {
+      System.out.println("Now time to vote.");
+      System.out.println("But you dead. Please wait...");
+      return;
     }
+    
+    canVote = true;
+    if(time.equals("day")) {
+      System.out.println("Now you can vote!");
+      System.out.println("Type voteCivilian to vote");
+    } else if(time.equals("night") && me.role.equals("werewolf")){
+      System.out.println("You are werewolf. Now you can vote!");
+      System.out.println("Type voteWerewolf to vote");
+    }
+    
+    sendOK();
   }
   
   public static void gameOverRes(JSONObject message) {
+    String winner = (String) message.get("winner");
+    System.out.println("Game over!");
+    System.out.println(winner + " win the game!");
     
+    isPlaying = false;
+    isReady = false;
+    
+    sendOK();
   }
   
   /***************** CLIENT REQUEST TO SERVER ****************/
@@ -143,11 +191,20 @@ public class WerewolfClient implements Runnable{
   }
   
   public static void leaveReq() {
-    JSONObject message = new JSONObject();
-    message.put("method", "leave");
-    os.println(message.toJSONString());
-    
-    isConnected = false;
+    try {
+      is.close();
+      os.close();
+      clientSocket.close();
+      System.out.println("Keluar dari permainan...");
+      
+      JSONObject message = new JSONObject();
+      message.put("method", "leave");
+      os.println(message.toJSONString());
+      
+      isConnected = false;
+    } catch (IOException ex) {
+      Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
+    }
   }
   
   public static void readyReq() {
@@ -193,6 +250,11 @@ public class WerewolfClient implements Runnable{
    * siapa yang akan dibunuh di malam hari
    */
   public static void voteWerewolfReq() {
+    if(!canVote || !role.equals("werewolf")) {
+      System.out.println("You cannot vote now or you are not werewolf");
+      return;
+    }
+    System.out.println("Siapa yang kamu mau vote?");
     
   }
   
@@ -236,11 +298,14 @@ public class WerewolfClient implements Runnable{
  
   public static void main(String[] args) {
 
+    String username;
     int playerId = 0; // Player ID
-    int hostPort = 0; // Port host
-    int udpPort = 0; // Port host
-    String udpAddress = null; // Alamat host
     String host = null; // Alamat host
+    int hostPort = 0; // Port host
+    
+    String udpAddress = null; // Alamat host
+    int udpPort = 0; // Port host
+    
     String cmd; // Command
     JSONObject jsonObj; // JSON Object
     BufferedReader is;
@@ -286,7 +351,7 @@ public class WerewolfClient implements Runnable{
         udpThread.start();
       
         System.out.print("Masukkan username: ");
-        String username = sc.next();
+        username = sc.next();
 
         jsonObj = new JSONObject();
         jsonObj.put("method", "join");
@@ -302,8 +367,13 @@ public class WerewolfClient implements Runnable{
         }
         
         jsonObj = (JSONObject) new JSONParser().parse(client.responseLine);
-      } while (jsonObj.get("status").equals("fail"));
+        playerId = ((Long)jsonObj.get("player_id")).intValue();
+      } while (!jsonObj.get("status").equals("ok"));
       
+      me = new Player(username, playerId);
+      me.isAlive = 1;
+      me.udpPort = udpPort;
+      me.udpAddress = udpAddress;
       
       // Main loop
       do {
@@ -333,12 +403,15 @@ public class WerewolfClient implements Runnable{
             break;
           case "leave":
             leaveReq();
-            
-            is.close();
-            os.close();
-            clientSocket.close();
-            System.out.println("Keluar dari permainan...");
-          break;
+            break;
+          case "listPlayer":
+            clientAddressReq();
+          case "voteWerewolf":
+            voteWerewolfReq();
+            break;
+          case "voteCivilian":
+            voteCivilianReq();
+            break;
           default:
             System.out.println("Perintah salah!");
             break;
@@ -376,8 +449,23 @@ public class WerewolfClient implements Runnable{
             String method = (String) obj.get("method");
 
             switch(method) {
-              case "kpu_selected" :
-                
+              case "kpu_selected":
+                kpuSelectedRes(obj);
+                break;
+              case "start":
+                startRes(obj);
+                break;
+              case "change_phase":
+                changePhaseRes(obj);
+                break;
+              case "vote_now":
+                voteNowRes(obj);
+                break;
+              case "game_over":
+                gameOverRes(obj);
+                break;
+              default:
+                handleOK(obj);
                 break;
             }
           } catch (Exception e) {
@@ -393,4 +481,58 @@ public class WerewolfClient implements Runnable{
     }
   }
   
+  private void printPlayers() {
+    for(Player p : players) {
+      System.out.println(p.id + ") " + p.username
+              + " (role : " + p.role + ")"
+              + (p.isAlive == 0? " (dead) " : ""));
+    }
+  }
+  
+  private void updateAmIProposer() {
+    ArrayList<Integer> a = new ArrayList<Integer>();
+    for(Player p : players) {
+      a.add(p.id);
+    }
+    Collections.sort(a);
+    Collections.reverse(a);
+    amIKpu = me.id == a.get(0) || me.id == a.get(1);
+  }
+  
+  private void updateWerewolfFriend() {
+    for(String name : friends) {
+      for(Player p : players) {
+        if(name.equals(p.username)) {
+          p.role = "werewolf";
+        }
+      }
+    }
+  }
+  
+  private void handleOK(JSONObject obj) {
+    String status = (String) obj.get("status");
+    if(status.equals("ok")) {
+      System.out.println("Receive OK from server.");
+      JSONArray clients = (JSONArray) obj.get("clients");
+      if(clients != null) {
+        Iterator i = clients.iterator();
+        while(i.hasNext()) {
+          JSONObject client = (JSONObject) i.next();
+          players = new ArrayList<Player>();
+          players.add(new Player((String)client.get("username"),
+                  ((Long)client.get("player_id")).intValue()));
+          int at = players.size() - 1;
+          players.get(at).isAlive = ((Long)client.get("is_alive")).intValue();
+          players.get(at).udpAddress = (String) client.get("address");
+          players.get(at).udpPort = ((Long)client.get("port")).intValue();
+          if(players.get(at).isAlive == 0) {
+            players.get(at).role = (String) client.get("role");
+          }
+        }
+        printPlayers();
+        updateAmIProposer();
+        updateWerewolfFriend();
+      }
+    }
+  }
 }

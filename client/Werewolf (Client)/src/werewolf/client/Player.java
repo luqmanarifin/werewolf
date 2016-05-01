@@ -5,12 +5,13 @@ package werewolf.client;
  * @author Luqman
  */
 public class Player {
-    private String username;
-    private int id;
-    private int isAlive;
-    private int udpPort;
-    private String udpAddress;
-    public String role;
+    public String username;
+    public int id;
+    public int isAlive;
+    public String role = "civilian";
+    
+    public int udpPort;
+    public String udpAddress;
     
     public Player() {
         this.username = null;
