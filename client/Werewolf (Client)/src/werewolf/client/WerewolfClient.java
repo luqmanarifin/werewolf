@@ -109,35 +109,54 @@ public class WerewolfClient implements Runnable{
   }
   
   public static void startRes(JSONObject message) {
-    isPlaying = true;
-    isReady = false;
-    days = 0;
-    time = (String) message.get("time");
-    canVote = false;
-    
-    role = (String) message.get("role");
-    friends = new ArrayList<String>();
-    JSONArray arr = (JSONArray) message.get("friend");
-    Iterator it = arr.iterator();
-    while (it.hasNext()) {
-      String friend = (String) it.next();
-      friends.add(friend);
-      System.out.println("Teman: " + friend);
+    try {
+      isPlaying = true;
+      isReady = false;
+      days = 0;
+      time = (String) message.get("time");
+      canVote = false;
+
+      role = (String) message.get("role");
+      friends = new ArrayList<String>();
+      JSONArray arr = (JSONArray) message.get("friend");
+      Iterator it = arr.iterator();
+      while (it.hasNext()) {
+        String friend = (String) it.next();
+        friends.add(friend);
+        System.out.println("Teman: " + friend);
+      }
+      kpu = null;
+      amIProposer = false;
+      amIKpu = false;
+      lastProposal = -1;
+      lastKpu = -1;
+      numProposal = 0;
+
+      sendOK();
+      clientAddressReq();
+      Thread.sleep(1000);
+      if(amIProposer) {
+        DatagramReceiverThread.prepareProposalReq();
+      }
+        
+    } catch (Exception e) {
+      System.out.println(e);
     }
-    lastProposal = -1;
-    lastKpu = -1;
-    numProposal = 0;
-    
-    sendOK();
-    clientAddressReq();
   }
   
   public static void changePhaseRes(JSONObject message) {
     time = (String) message.get("time");
     days = ((Long) message.get("days")).intValue();
+    String news = (String) message.get("description");
+    
+    System.out.println(news);
+    System.out.println("");
     
     if(time.equals("day")) {
       amIKpu = false;
+      if(amIProposer) {
+        DatagramReceiverThread.prepareProposalReq();
+      }
     }
     
     sendOK();
@@ -267,7 +286,7 @@ public class WerewolfClient implements Runnable{
     message = new JSONObject();
     message.put("method", "accepted_proposal");
     message.put("kpu_id", lastKpu);
-    message.put("description", "");
+    message.put("description", "Kpu is selected");
     os.println(message.toJSONString());    
   }
   
@@ -508,10 +527,9 @@ public class WerewolfClient implements Runnable{
       System.out.println("Receive OK from server.");
       JSONArray clients = (JSONArray) obj.get("clients");
       if(clients != null) {
-        Iterator i = clients.iterator();
-        while(i.hasNext()) {
-          JSONObject client = (JSONObject) i.next();
-          players = new ArrayList<Player>();
+        players = new ArrayList<Player>();
+        for(int i = 0; i < clients.size(); i++) {
+          JSONObject client = (JSONObject) clients.get(i);
           players.add(new Player((String)client.get("username"),
                   ((Long)client.get("player_id")).intValue()));
           int at = players.size() - 1;
@@ -522,11 +540,11 @@ public class WerewolfClient implements Runnable{
             players.get(at).role = (String) client.get("role");
           }
         }
-        printPlayers();
         updateAmIProposer();
         updateWerewolfFriend();
+        printPlayers();
       }
     }
-    System.out.println("Handle OK done");
+    System.out.println("Handle OK done.");
   }
 }

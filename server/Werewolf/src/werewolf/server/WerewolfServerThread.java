@@ -22,7 +22,12 @@ class WerewolfServerThread extends Thread {
   private GameComponent GC;
   private boolean isLeave = false;
   private int myPlayerId; // Id player yang ditangani oleh thread ini
-
+  
+  private boolean isWaiting = false;
+  private int[] votes = new int[GC.MAX_CLIENT];
+  private int voteCount = 0;
+  private long time;
+  
   public WerewolfServerThread(Socket clientSocket, GameComponent gc, int playerId) {
     this.clientSocket = clientSocket;
     this.GC = gc;
@@ -140,6 +145,7 @@ class WerewolfServerThread extends Thread {
     response.put("clients", clients);
     System.out.println(clients.toString());
     sendMessage(response);
+    System.out.println("Mengirim list player ke ID : " + myPlayerId);
   }
   
   /**
@@ -158,7 +164,7 @@ class WerewolfServerThread extends Thread {
         response.put("description", "");
         sendMessage(response);
         
-        changePhaseReq();
+        changePhaseReq(GC.players[player_killed].getUsername());
       } else {
         voteNowReq();
       }
@@ -169,28 +175,57 @@ class WerewolfServerThread extends Thread {
    * @param message 
    */
   private void voteResultCivilianRes(JSONObject message) {
-      int vote_status = ((Long) message.get("vote_status")).intValue();
-      GC.remainingVote--;
-      
-      if (vote_status == 1) {
-        int player_killed = ((Long) message.get("player_killed")).intValue();
-        GC.players[player_killed].die();
-        
-        JSONObject response = new JSONObject();
-        response.put("status", "ok");
-        response.put("description", "");
-        sendMessage(response);
-        
-        changePhaseReq();
+    int vote_status = ((Long) message.get("vote_status")).intValue();
+    GC.remainingVote--;
+    System.out.println(GC.remainingVote + " votes remaining");
+    if (vote_status == 1) {
+      int player_killed = ((Long) message.get("player_killed")).intValue();
+      GC.players[player_killed].die();
+
+      JSONObject response = new JSONObject();
+      response.put("status", "ok");
+      response.put("description", "");
+      sendMessage(response);
+
+      changePhaseReq(GC.players[player_killed].getUsername());
+    } else {
+      if(GC.remainingVote > 0) {
+        voteNowReq();
       } else {
-        if(GC.remainingVote > 0) {
-          voteNowReq();
-        } else {
-          changePhaseReq();
-        }
+        changePhaseReq(null);
       }
+    }
   }
   
+  private void acceptedProposalRes(JSONObject message) {
+    int kpu_id = ((Long) message.get("kpu_ids")).intValue();
+    if(!isWaiting) {
+      isWaiting = true;
+      time = System.nanoTime();
+      for(int i = 0; i < GC.MAX_CLIENT; i++) votes[i] = 0;
+      voteCount = 1;
+      
+      votes[kpu_id]++;
+      
+    } else {
+      long delta = System.nanoTime() - time;
+      votes[kpu_id]++;
+      voteCount++;
+      if(delta > 1e10 || GC.connectedPlayer == voteCount) {
+        isWaiting = false;
+        int best = -1, p = -1;
+        for(int i = 0; i < GC.MAX_CLIENT; i++) {
+          if(votes[i] > best) {
+            best = votes[i];
+            p = i;
+          }
+        }
+        // kpu selected vote now
+        kpuSelectedReq(p);
+        voteNowReq();
+      }
+    }
+  }
   
   /********** REQUEST METHOD FROM SERVER TO CLIENT ***********/
   private void startReq() {
@@ -246,17 +281,18 @@ class WerewolfServerThread extends Thread {
         response.put("friend", listWolf);
       } else {
         response.put("role", "civilian");
-        response.put("friend", "");
+        response.put("friend", new ArrayList<>());
       }
       GC.threads[i].sendMessage(response);
     }
+    System.out.println("Game started");
   }
   
   /*
    * Dikirimkan oleh server kepada seluruh client jika ada
    * perubahan waktu
    */
-  private void changePhaseReq() {
+  private void changePhaseReq(String who) {
     if(!GC.isDay) {
       GC.days++;
     }
@@ -266,11 +302,16 @@ class WerewolfServerThread extends Thread {
     message.put("method", "change_phase");
     message.put("time", GC.getTime());
     message.put("days", GC.days);
-    message.put("description", "Ganti fase");
+    if(who != null) {
+      message.put("description", who + " (" + GameComponent.getRole(who) + ") has been killed");
+    } else {
+      message.put("description", "No one killed.");
+    }
     
     broadcastMessage(message);
     GC.remainingVote = 2;
     voteNowReq();
+    System.out.println("Change phase");
   }
   
   /*
@@ -301,10 +342,10 @@ class WerewolfServerThread extends Thread {
    * Dikirimkan oleh server ketika KPU terpilih
    * METHODNYA BELUM KELAR
    */  
-  private void kpuSelectedReq() {
+  private void kpuSelectedReq(int num) {
     JSONObject message = new JSONObject();
     message.put("method", "kpu_selected");
-    message.put("kpu_id", 0);
+    message.put("kpu_id", num);
     
     broadcastMessage(message);
   }
@@ -369,36 +410,42 @@ class WerewolfServerThread extends Thread {
         
         String method = (String) message.get("method");
         
-        switch (method) {
-          case "join":
-            joinRes(message);
-            break;
-          case "leave":
-            leaveRes(message);
-            break;
-          case "ready":
-            readyRes(message);
-            break;
-          case "client_address":
-            clientAddressRes(message);
-            break;
-          case "vote_result_werewolf":
-            // Flow: KPU -> server
-            voteResultWerewolfRes(message);
-            break;
-          case "vote_result_civilian":
-            // Flow: KPU -> server
-            voteResultCivilianRes(message);
-            break;
-
-          case "failed":
-            showDescription(message);
-            break;
-          case "error":
-            showDescription(message);
-            break;
-          default:
+        try {
+          switch (method) {
+            case "join":
+              joinRes(message);
               break;
+            case "leave":
+              leaveRes(message);
+              break;
+            case "ready":
+              readyRes(message);
+              break;
+            case "client_address":
+              clientAddressRes(message);
+              break;
+            case "vote_result_werewolf":
+              // Flow: KPU -> server
+              voteResultWerewolfRes(message);
+              break;
+            case "vote_result_civilian":
+              // Flow: KPU -> server
+              voteResultCivilianRes(message);
+              break;
+            case "accepted_proposal":
+              acceptedProposalRes(message);
+              break;
+            case "failed":
+              showDescription(message);
+              break;
+            case "error":
+              showDescription(message);
+              break;
+            default:
+                break;
+          }
+        } catch(NullPointerException e) {
+          System.out.println("Got OK from " + myPlayerId);
         }
         int stateWinner = isWin();
         if(stateWinner != 0) {

@@ -25,4 +25,14 @@ public class GameComponent {
   public static String getTime() {
     return isDay? "day" : "night";
   }
+  
+  public static String getRole(String name) {
+    for(int i = 0; i < MAX_CLIENT; i++) {
+      if(threads[i] == null) continue;
+      if(players[i].getUsername().equals(name)) {
+        return players[i].getRole();
+      }
+    }
+    return null;
+  }
 }

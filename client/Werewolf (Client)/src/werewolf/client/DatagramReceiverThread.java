@@ -16,7 +16,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
 import static werewolf.client.WerewolfClient.canVote;
+import static werewolf.client.WerewolfClient.kpuSelectedRes;
 
 /**
  *
@@ -152,7 +154,7 @@ public class DatagramReceiverThread implements Runnable{
     sendUDPMessage(response, address, port);
   }
 
-  public static void acceptProposalRes(JSONObject obj) {
+  public static void acceptProposalRes(JSONObject obj, String address, int port) {
     ArrayList<Integer> arr = new ArrayList<Integer>();
     JSONArray json = (JSONArray) obj.get("proposal_id");
     for(int i = 0; i < json.size(); i++) {
@@ -168,8 +170,8 @@ public class DatagramReceiverThread implements Runnable{
     
     JSONObject response = new JSONObject();
     response.put("status", "ok");
-    response.put("description", "accepted");
-    sendToKpu(response);
+    response.put("description", "accepted proposal");
+    sendUDPMessage(response, address, port);
   }
 
   /**
@@ -177,6 +179,10 @@ public class DatagramReceiverThread implements Runnable{
    * dibunuh di malam hari
    */
   public static void voteWerewolfReq() {
+    if(!WerewolfClient.canVote) {
+      System.out.println("You cannot vote now");
+      return;
+    }
     if(WerewolfClient.me.isAlive == 0 || !WerewolfClient.me.role.equals("werewolf")) {
       System.out.println("Werewolf now voting...");
       return;
@@ -218,6 +224,10 @@ public class DatagramReceiverThread implements Runnable{
    * dibunuh di siang hari
    */
   public static void voteCivilianReq() {
+    if (!WerewolfClient.canVote) {
+      System.out.println("You cannot vote now");
+      return;
+    }
     if (WerewolfClient.me.isAlive == 0) {
       System.out.println("Civilian now voting...");
       return;
@@ -255,13 +265,41 @@ public class DatagramReceiverThread implements Runnable{
  
   @Override
   public void run() {
+    JSONParser parser = new JSONParser();
     try {
       while (WerewolfClient.isConnected){
         socket.receive(packet);
         String received = new String(packet.getData(), 0, packet.getLength());
         System.out.println("UDP Response: " + received);
-        System.out.println("From: " + packet.getAddress() + " " + packet.getPort());
+        String address = packet.getAddress().toString();
+        int port = packet.getPort();
+        System.out.println("From: " + address + " " + port);
         System.out.println("");
+        
+        try {
+          System.out.println(received);
+          JSONObject obj = (JSONObject) parser.parse(received);
+          String method = (String) obj.get("method");
+          if(method != null) {
+            switch(method) {
+              case "prepare_proposal":
+                prepareProposalRes(obj, address, port);
+                break;
+              case "accept_proposal":
+                acceptProposalRes(obj, address, port);
+                break;
+              default:
+                break;
+            }
+          } else {
+            String desc = (String) obj.get("description");
+            if(desc.equals("accepted")) {
+              acceptProposalReq(packet.getAddress().toString(), packet.getPort());
+            }
+          }
+        } catch (Exception e) {
+          System.out.println(e);
+        }
       }
     } catch(Exception e) {
       System.out.println("Unconnecting UDP");
