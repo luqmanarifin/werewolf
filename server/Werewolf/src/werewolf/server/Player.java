@@ -19,10 +19,12 @@ public class Player {
         isAlive = 0;
     }
     
-    public Player(String username, int id) {
+    public Player(String username, int id, String address, int port) {
         this.username = username;
         this.id = id;
         this.isAlive = 1;
+        this.udpAddress = address;
+        this.udpPort = port;
     }
     
     public String getUsername() {

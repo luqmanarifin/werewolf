@@ -40,8 +40,8 @@ public class WerewolfClient implements Runnable{
   static boolean canVote = false;
   
   static String role = null;
-  static ArrayList<String> friends;
-  static ArrayList<Player> players;
+  static ArrayList<String> friends = new ArrayList<String>();
+  static ArrayList<Player> players = new ArrayList<Player>();
   static Player kpu = null;
   static Player me = null;
   static boolean amIProposer = false;
@@ -49,7 +49,7 @@ public class WerewolfClient implements Runnable{
   static int[] votes = new int[MAX_CLIENT];
   
   // IO something
-  static Scanner sc;
+  static Scanner sc = new Scanner(System.in);;
   String responseLine;
   static BufferedReader is;
   static PrintStream os;
@@ -59,6 +59,20 @@ public class WerewolfClient implements Runnable{
   static DatagramReceiverThread udpClient;
   Thread udpThread = new Thread(udpClient);
 
+  static String username;
+  static int playerId = 0; // Player ID
+  static String host = null; // Alamat host
+  static int hostPort = 0; // Port host
+
+  static String udpAddress = null; // Alamat host
+  static int udpPort = 0; // Port host
+
+  static String cmd; // Command
+  static JSONObject jsonObj; // JSON Object
+  static BufferedReader iis;
+  static PrintStream oos;
+  static WerewolfClient client;
+  static Socket cs = null;
   
   public WerewolfClient(Socket socket) throws IOException{
     clientSocket = socket; 
@@ -104,8 +118,6 @@ public class WerewolfClient implements Runnable{
     JSONObject response = new JSONObject();
     response.put("status", "ok");
     os.println(response.toJSONString());
-    
-    sendOK();
   }
   
   public static void kpuSelectedRes(JSONObject message) {
@@ -186,8 +198,51 @@ public class WerewolfClient implements Runnable{
   
   /***************** CLIENT REQUEST TO SERVER ****************/
   
-  public static void joinReq() {
-    
+  public static void joinReq() throws Exception {
+    // Join sampai berhasil
+    do {
+      // Koneksi ke server
+      System.out.println("Connecting...");
+      cs = new Socket(host, hostPort);
+      iis = new BufferedReader(new InputStreamReader(cs.getInputStream()));
+      oos = new PrintStream(cs.getOutputStream());
+      isConnected = true;
+      System.out.println("Connected");
+
+      // Threads
+      client = new WerewolfClient(cs);
+      Thread tcpThread = new Thread(client);
+      tcpThread.start();
+
+      // Threads for UDP listener
+      udpClient = new DatagramReceiverThread(udpPort);
+      Thread udpThread = new Thread(udpClient);
+      udpThread.start();
+
+      System.out.print("Masukkan username: ");
+      username = sc.next();
+
+      jsonObj = new JSONObject();
+      jsonObj.put("method", "join");
+      jsonObj.put("username", username);
+      jsonObj.put("udp_address", udpAddress);
+      jsonObj.put("udp_port", udpPort);
+      isReceived = false;
+      oos.println(jsonObj.toJSONString());
+
+      System.out.println(jsonObj.toJSONString());
+      while (!isReceived) {
+        Thread.sleep(10);
+      }
+
+      jsonObj = (JSONObject) new JSONParser().parse(client.responseLine);
+      playerId = ((Long) jsonObj.get("player_id")).intValue();
+    } while (!jsonObj.get("status").equals("ok"));
+
+    me = new Player(username, playerId);
+    me.isAlive = 1;
+    me.udpPort = udpPort;
+    me.udpAddress = udpAddress;
   }
   
   public static void leaveReq() {
@@ -267,7 +322,7 @@ public class WerewolfClient implements Runnable{
    * siapa yang akan dibunuh di siang hari
    */
   public static void voteCivilianReq() {
-    
+    // handled in early games
   }
   
   public static void voteCivilianRes() {
@@ -295,27 +350,7 @@ public class WerewolfClient implements Runnable{
     
   }
   
- 
-  public static void main(String[] args) {
-
-    String username;
-    int playerId = 0; // Player ID
-    String host = null; // Alamat host
-    int hostPort = 0; // Port host
-    
-    String udpAddress = null; // Alamat host
-    int udpPort = 0; // Port host
-    
-    String cmd; // Command
-    JSONObject jsonObj; // JSON Object
-    BufferedReader is;
-    PrintStream os;
-    WerewolfClient client;
-    Socket clientSocket = null;
-
-    // Scanner
-    sc = new Scanner(System.in);
-
+  public static void initiateInput() {
     // Input alamat
     System.out.println("Selamat datang di Werewolf!");
     System.out.print("Server Address: ");
@@ -326,54 +361,16 @@ public class WerewolfClient implements Runnable{
     udpAddress = sc.next();
     System.out.print("Port UDP: ");
     udpPort = sc.nextInt();
-
-    // Membuat socket dengan host dan port number yang telah diberikan
+  }
+  
+  
+  
+  public static void main(String[] args) {
+    initiateInput();
+            
+    // Membuat socket dengan host dan port number yang telah diberikan  
     try {
-      // Join sampai berhasil
-      do {
-        // Koneksi ke server
-        System.out.println("Connecting...");
-        clientSocket = new Socket(host, hostPort);
-        is = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-        os = new PrintStream(clientSocket.getOutputStream());
-        isConnected = true;
-        System.out.println("Connected");
-
-        // Threads
-        client = new WerewolfClient(clientSocket);
-        Thread tcpThread = new Thread(client);
-        tcpThread.start();
-        
-        
-        // Threads for UDP listener
-        udpClient = new DatagramReceiverThread(udpPort);
-        Thread udpThread = new Thread(udpClient);
-        udpThread.start();
-      
-        System.out.print("Masukkan username: ");
-        username = sc.next();
-
-        jsonObj = new JSONObject();
-        jsonObj.put("method", "join");
-        jsonObj.put("username", username);
-        jsonObj.put("udp_address", udpAddress);
-        jsonObj.put("udp_port", udpPort);
-        
-        isReceived = false;
-        os.println(jsonObj.toJSONString());
-        System.out.println(jsonObj.toJSONString());
-        while(!isReceived){
-          Thread.sleep(10);
-        }
-        
-        jsonObj = (JSONObject) new JSONParser().parse(client.responseLine);
-        playerId = ((Long)jsonObj.get("player_id")).intValue();
-      } while (!jsonObj.get("status").equals("ok"));
-      
-      me = new Player(username, playerId);
-      me.isAlive = 1;
-      me.udpPort = udpPort;
-      me.udpAddress = udpAddress;
+      joinReq();
       
       // Main loop
       do {
@@ -393,6 +390,7 @@ public class WerewolfClient implements Runnable{
         }
         
         cmd = sc.next();
+        System.out.println("command adalah : " + cmd);
         switch (cmd) {
           case "ready":
             if (!isReady) {
@@ -406,6 +404,7 @@ public class WerewolfClient implements Runnable{
             break;
           case "listPlayer":
             clientAddressReq();
+            break;
           case "voteWerewolf":
             voteWerewolfReq();
             break;
@@ -416,7 +415,7 @@ public class WerewolfClient implements Runnable{
             System.out.println("Perintah salah!");
             break;
         }
-        
+        System.out.println("command tereksekusi");
       } while (!cmd.equals("leave") && isPlaying);
       
           
@@ -428,26 +427,28 @@ public class WerewolfClient implements Runnable{
       Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
     } catch (ParseException ex) {
       Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
+    } catch (Exception ee) {
+      
     }
   }
   
   @Override
   public void run() {
-    JSONObject obj;
+    JSONObject obj = null;
     JSONParser parser = new JSONParser();
     try {
       while (isConnected){
         // Message from server to client
         responseLine = is.readLine();
         if (responseLine != null){
-          System.out.println(responseLine);
           isReceived = true;
           Thread.sleep(20);
 
           try {
+            System.out.println(responseLine);
             obj = (JSONObject) parser.parse(responseLine);
             String method = (String) obj.get("method");
-
+            System.out.println("method " + method);
             switch(method) {
               case "kpu_selected":
                 kpuSelectedRes(obj);
@@ -465,11 +466,10 @@ public class WerewolfClient implements Runnable{
                 gameOverRes(obj);
                 break;
               default:
-                handleOK(obj);
                 break;
             }
           } catch (Exception e) {
-
+            handleOK(obj);
           }
         }
       }
@@ -511,7 +511,7 @@ public class WerewolfClient implements Runnable{
   
   private void handleOK(JSONObject obj) {
     String status = (String) obj.get("status");
-    if(status.equals("ok")) {
+    if(status != null && status.equals("ok")) {
       System.out.println("Receive OK from server.");
       JSONArray clients = (JSONArray) obj.get("clients");
       if(clients != null) {
@@ -534,5 +534,6 @@ public class WerewolfClient implements Runnable{
         updateWerewolfFriend();
       }
     }
+    System.out.println("Handle OK done");
   }
 }

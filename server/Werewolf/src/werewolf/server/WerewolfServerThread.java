@@ -82,7 +82,8 @@ class WerewolfServerThread extends Thread {
           response.put("udp_port", udpPort);
           
           // Add new user to player list
-          GC.players[myPlayerId] = new Player(username, myPlayerId);
+          GC.players[myPlayerId] = new Player(username, myPlayerId, udpAddress, udpPort);
+          
           GC.connectedPlayer++;
         } else  {
             response.put("status", "fail");
@@ -131,11 +132,13 @@ class WerewolfServerThread extends Thread {
       client.put("port", GC.players[i].getUdpPort());
       client.put("username", GC.players[i].getUsername());
       clients.add(client);
+      System.out.println("added : " + client.toString());
     }
 
     JSONObject response = new JSONObject();
     response.put("status", "ok");
     response.put("clients", clients);
+    System.out.println(clients.toString());
     sendMessage(response);
   }
   
