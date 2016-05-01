@@ -16,32 +16,36 @@ import java.util.logging.Logger;
  *
  * @author adinb
  */
-public class DatagramClientThread implements Runnable{
+public class DatagramReceiverThread implements Runnable{
 
   DatagramPacket packet;
   DatagramSocket socket;
+  int listenPort;
+  
   byte[] buf;
 
-  public DatagramClientThread() {
+  public DatagramReceiverThread(int listenPort) {
     buf = new byte[4096];
     packet = new DatagramPacket(buf, buf.length);
+    this.listenPort = listenPort;
+    
     try {
-      socket = new DatagramSocket();
+      socket = new DatagramSocket(listenPort);
     } catch (SocketException ex) {
-      Logger.getLogger(DatagramClientThread.class.getName()).log(Level.SEVERE, null, ex);
+      Logger.getLogger(DatagramReceiverThread.class.getName()).log(Level.SEVERE, null, ex);
     }
   }
  
   @Override
   public void run() {
     try {
-      while (WerewolfClient.isPlaying){
+      while (true){
         socket.receive(packet);
         String received = new String(packet.getData(), 0, packet.getLength());
         System.out.println("UDP Response: " + received);
       }
     } catch (IOException ex) {
-      Logger.getLogger(DatagramClientThread.class.getName()).log(Level.SEVERE, null, ex);
+      Logger.getLogger(DatagramReceiverThread.class.getName()).log(Level.SEVERE, null, ex);
     }
   }
     
