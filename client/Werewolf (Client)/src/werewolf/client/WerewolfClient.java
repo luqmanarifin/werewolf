@@ -57,6 +57,16 @@ public class WerewolfClient implements Runnable{
   /***************** RESPONSE FROM SERVER ****************/
   
   public static void startRes(JSONObject message) {
+    time = (String) message.get("time");
+    role = (String) message.get("role");
+    friends = new ArrayList<String>();
+    JSONArray arr = (JSONArray) message.get("friend");
+    Iterator i = arr.iterator();
+    while (i.hasNext()) {
+//                        friends.add((String)i.next());
+//                        System.out.println("Teman: " + (String)arr.iterator().next());
+    }
+    
     isPlaying = true;
     
     JSONObject response = new JSONObject();
@@ -68,7 +78,6 @@ public class WerewolfClient implements Runnable{
   public static void changePhaseRes(JSONObject message) {
     time = (String) message.get("time");
     days = ((Long) message.get("days")).intValue();
-    
     JSONObject response = new JSONObject();
     response.put("status", "ok");
 
@@ -292,85 +301,77 @@ public class WerewolfClient implements Runnable{
     }
   }
   
+  
+  private void handleOK(JSONObject obj) {
+    String client = (String) obj.get("client");
+  }
+  
   @Override
-    public void run() {
-      JSONObject obj;
-      JSONParser parser = new JSONParser();
-        try {
-            while (isConnected){
-              // Message from server to client
-              responseLine = is.readLine();
-              if (responseLine != null){
-                System.out.println(responseLine);
-                isReceived = true;
-                Thread.sleep(20);
-                
-                try {
-                  obj = (JSONObject) parser.parse(responseLine);
-                  String method = (String) obj.get("method");
-                  
-                  switch(method) {
-                    case "start": {
-                      time = (String) obj.get("time");
-                      role = (String) obj.get("role");
-                      friends = new ArrayList<String>();
-                      JSONArray arr = (JSONArray) obj.get("friend");
-                      Iterator i = arr.iterator();
-                      while (i.hasNext()){
-//                        friends.add((String)i.next());
-//                        System.out.println("Teman: " + (String)arr.iterator().next());
-                      }
-                      startRes(obj);
-                    }
-                    break;
-                    case "change_phase":{
-                      time = (String) obj.get("time");
-                      days = (int) obj.get("days");
-                      changePhaseRes(obj);
-                    }
-                    break;
-                    case "vote_now":{
-                      if (obj.get("phase").equals("day")){
-                        // Protokol 10
-                        clientAddressReq();
-                        JSONObject obj2 = (JSONObject) parser.parse(responseLine);
-                        JSONArray arr = (JSONArray)obj2.get("clients");
-                        Iterator i = arr.iterator();
-                        
-                        while (i.hasNext()){
-                          obj2 = (JSONObject)i.next();
-                          System.out.println(obj2.get("id") + ". " + obj2.get("username"));
-                        }
-                        System.out.print("Pilih id yang akan dieksekusi: ");
-                        
-                      }
-                      else if (obj.get("phase").equals("night")){
-                        // Protokol 8
-                      }
-                    }
-                    break;
-                    case "game_over":{
-                      System.out.println("GAME OVER!");
-                      System.out.println("Winner: " + obj.get("winner"));
-                      isPlaying = false;
-                      isGameOver = true;
-                      // Declare winner and exit
-                    }
-                    break;
-                    default:
-                    break;
-                  }
-                } catch (Exception e) {
-                
-                }
-              }
-            }
+  public void run() {
+    JSONObject obj;
+    JSONParser parser = new JSONParser();
+    try {
+      while (isConnected){
+        // Message from server to client
+        responseLine = is.readLine();
+        if (responseLine != null){
+          System.out.println(responseLine);
+          isReceived = true;
+          Thread.sleep(20);
 
-        } catch (IOException e) {
-          System.out.println("Connection ended");
-        } catch (InterruptedException ex) {
+          try {
+            obj = (JSONObject) parser.parse(responseLine);
+            String method = (String) obj.get("method");
+
+            switch(method) {
+              case "start":
+                startRes(obj);
+                break;
+              case "change_phase":
+                changePhaseRes(obj);
+                break;
+              case "vote_now":
+                if (obj.get("phase").equals("day")){
+                  // Protokol 10
+                  clientAddressReq();
+                  JSONObject obj2 = (JSONObject) parser.parse(responseLine);
+                  JSONArray arr = (JSONArray)obj2.get("clients");
+                  Iterator i = arr.iterator();
+
+                  while (i.hasNext()){
+                    obj2 = (JSONObject)i.next();
+                    System.out.println(obj2.get("id") + ". " + obj2.get("username"));
+                  }
+                  System.out.print("Pilih id yang akan dieksekusi: ");
+
+                }
+                else if (obj.get("phase").equals("night")){
+                  // Protokol 8
+                }
+                break;
+              case "game_over":
+                System.out.println("GAME OVER!");
+                System.out.println("Winner: " + obj.get("winner"));
+                isPlaying = false;
+                isGameOver = true;
+                // Declare winner and exit
+              break;
+              // default OK (getting response from server)
+              default:
+                handleOK(obj);
+              break;
+            }
+          } catch (Exception e) {
+
+          }
+        }
+      }
+
+    } catch (IOException e) {
+      System.out.println("Connection ended");
+    } catch (InterruptedException ex) {
       Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
     }
-    }
+  }
   
 }
