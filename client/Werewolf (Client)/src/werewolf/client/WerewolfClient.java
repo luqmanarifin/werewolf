@@ -26,9 +26,10 @@ public class WerewolfClient implements Runnable{
   static boolean isConnected = false;
   static boolean isReceived = false;
   static boolean isReady = false;
+  static boolean isGameOver = false;
   
   static ArrayList<String> friends;
-  
+  static Scanner sc;
   static String time = "night";
   static int days = 0;
   static String role = null; 
@@ -185,7 +186,6 @@ public class WerewolfClient implements Runnable{
     Socket clientSocket = null;
 
     // Scanner
-    Scanner sc;
     sc = new Scanner(System.in);
 
     // Input alamat
@@ -264,24 +264,6 @@ public class WerewolfClient implements Runnable{
             }
           }
           break;
-          case "getList": {
-            if (isPlaying) {
-              clientAddressReq();
-            }
-          }
-          break;
-          case "voteWerewolf": {
-            if (isPlaying) {
-              voteWerewolfReq(); 
-            }
-          }
-          break;
-          case "voteCivilian": {
-            if (isPlaying) {
-             voteCivilianReq(); 
-            }
-          }
-          break;
           case "leave": {
             leaveReq();
             
@@ -296,7 +278,7 @@ public class WerewolfClient implements Runnable{
           }
         }
         
-      } while (!cmd.equals("leave"));
+      } while (!cmd.equals("leave") || isGameOver == true);
       
           
     } catch (UnknownHostException e) {
@@ -335,8 +317,8 @@ public class WerewolfClient implements Runnable{
                       JSONArray arr = (JSONArray) obj.get("friend");
                       Iterator i = arr.iterator();
                       while (i.hasNext()){
-                        friends.add((String)i.next());
-                        System.out.println("Teman: " + (String)arr.iterator().next());
+//                        friends.add((String)i.next());
+//                        System.out.println("Teman: " + (String)arr.iterator().next());
                       }
                       startRes(obj);
                     }
@@ -350,6 +332,17 @@ public class WerewolfClient implements Runnable{
                     case "vote_now":{
                       if (obj.get("phase").equals("day")){
                         // Protokol 10
+                        clientAddressReq();
+                        JSONObject obj2 = (JSONObject) parser.parse(responseLine);
+                        JSONArray arr = (JSONArray)obj2.get("clients");
+                        Iterator i = arr.iterator();
+                        
+                        while (i.hasNext()){
+                          obj2 = (JSONObject)i.next();
+                          System.out.println(obj2.get("id") + ". " + obj2.get("username"));
+                        }
+                        System.out.print("Pilih id yang akan dieksekusi: ");
+                        
                       }
                       else if (obj.get("phase").equals("night")){
                         // Protokol 8
@@ -357,6 +350,10 @@ public class WerewolfClient implements Runnable{
                     }
                     break;
                     case "game_over":{
+                      System.out.println("GAME OVER!");
+                      System.out.println("Winner: " + obj.get("winner"));
+                      isPlaying = false;
+                      isGameOver = true;
                       // Declare winner and exit
                     }
                     break;
