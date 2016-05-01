@@ -1,8 +1,8 @@
-package werewolf.server;
+package werewolf.client;
 
 /**
  *
- * @author Husni
+ * @author Luqman
  */
 public class Player {
     private String username;
@@ -10,8 +10,7 @@ public class Player {
     private int isAlive;
     private int udpPort;
     private String udpAddress;
-    public boolean isWolf = false;
-    public boolean isReady = false;
+    public String role;
     
     public Player() {
         this.username = null;
@@ -31,7 +30,6 @@ public class Player {
     
     public void reset() {
       isAlive = 1;
-      isReady = false;
     }
     
     public int getId() {
@@ -55,6 +53,6 @@ public class Player {
     }
     
     public String getRole() {
-      return isWolf? "werewolf" : "civilian";
+      return role;
     }
 }

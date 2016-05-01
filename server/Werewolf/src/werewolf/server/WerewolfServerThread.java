@@ -357,12 +357,11 @@ class WerewolfServerThread extends Thread {
         
         JSONObject message = new JSONObject();
         try {
-            JSONParser parser = new JSONParser();
-            Object obj = parser.parse(line);
-            message = (JSONObject) obj;
+          JSONParser parser = new JSONParser();
+          Object obj = parser.parse(line);
+          message = (JSONObject) obj;
         } catch (ParseException e) {
-            
-            break;
+          break;
         }
         
         String method = (String) message.get("method");

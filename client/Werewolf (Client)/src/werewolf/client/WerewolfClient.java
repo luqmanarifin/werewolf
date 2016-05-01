@@ -25,21 +25,28 @@ import org.json.simple.parser.ParseException;
  * @author Husni & Adin
  */
 public class WerewolfClient implements Runnable{
-  static boolean isPlaying = false;
   static boolean isConnected = false;
   static boolean isReceived = false;
-  static boolean isReady = false;
-  static boolean isGameOver = false;
   
-  static ArrayList<String> friends;
-  static Scanner sc;
-  static String time = "night";
+  // game variable
+  static boolean isPlaying = false;
+  static boolean isReady = false;
   static int days = 0;
-  static String role = null; 
-
+  static String time = "night";
+  
+  static String role = null;
+  static ArrayList<String> friends;
+  static ArrayList<Player> players;
+  static Player kpu = null;
+  static boolean amIProposer = false;
+  
+  // IO something
+  static Scanner sc;
   String responseLine;
   static BufferedReader is;
   static PrintStream os;
+  
+  // socket something
   Socket clientSocket;
   static DatagramReceiverThread udpClient;
   Thread udpThread = new Thread(udpClient);
@@ -51,13 +58,39 @@ public class WerewolfClient implements Runnable{
     this.os = new PrintStream(clientSocket.getOutputStream());
   }
   
-  public String getResponseLine(){
-    return responseLine;
+    /**
+   * Send message pake UDP
+   * @param message JSON Object yang mau dikirim
+   * @param address Alamat tujuan
+   * @param udpPort Port tujuan
+   */
+  public static void sendUDPMessage(JSONObject message, String address, int udpPort) {
+    
+    try {
+      InetAddress IPAddress = InetAddress.getByName(address);
+      int targetPort = udpPort;
+
+      DatagramSocket datagramSocket = new DatagramSocket();
+      UnreliableSender unreliableSender = new UnreliableSender(datagramSocket);
+    
+      byte[] sendData = message.toJSONString().getBytes();
+      DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, targetPort);
+      unreliableSender.send(sendPacket);
+      
+      datagramSocket.close();
+    } catch (UnknownHostException ex) {
+      Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
+    } catch (IOException ex) {
+      Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
+    }
+    
   }
   
-  
-  
   /***************** RESPONSE FROM SERVER ****************/
+  
+  public static void kpuSelectedRes(JSONObject message) {
+    
+  }
   
   public static void startRes(JSONObject message) {
     time = (String) message.get("time");
@@ -97,9 +130,15 @@ public class WerewolfClient implements Runnable{
     }
   }
   
+  public static void gameOverRes(JSONObject message) {
+    
+  }
   
+  /***************** CLIENT REQUEST TO SERVER ****************/
   
-  /***************** REQUEST TO SERVER ****************/
+  public static void joinReq() {
+    
+  }
   
   public static void leaveReq() {
     JSONObject message = new JSONObject();
@@ -125,7 +164,9 @@ public class WerewolfClient implements Runnable{
     os.println(message.toJSONString());
   }
   
-  
+  public static void clientAcceptedReq() {
+    
+  }
   
    /***************** PAXOS ****************/
   
@@ -182,34 +223,6 @@ public class WerewolfClient implements Runnable{
     
   }
   
-  /**
-   * Send message pake UDP
-   * @param message JSON Object yang mau dikirim
-   * @param address Alamat tujuan
-   * @param udpPort Port tujuan
-   */
-  public static void sendUDPMessage(JSONObject message, String address, int udpPort) {
-    
-    try {
-      InetAddress IPAddress = InetAddress.getByName(address);
-      int targetPort = udpPort;
-
-      DatagramSocket datagramSocket = new DatagramSocket();
-      UnreliableSender unreliableSender = new UnreliableSender(datagramSocket);
-    
-      byte[] sendData = message.toJSONString().getBytes();
-      DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, targetPort);
-      unreliableSender.send(sendPacket);
-      
-      datagramSocket.close();
-    } catch (UnknownHostException ex) {
-      Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
-    } catch (IOException ex) {
-      Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
-    }
-    
-  }
-  
  
   public static void main(String[] args) {
 
@@ -254,7 +267,6 @@ public class WerewolfClient implements Runnable{
         // Threads
         client = new WerewolfClient(clientSocket);
         Thread tcpThread = new Thread(client);
-
         tcpThread.start();
         
         
@@ -279,7 +291,7 @@ public class WerewolfClient implements Runnable{
           Thread.sleep(10);
         }
         
-        jsonObj = (JSONObject) new JSONParser().parse(client.getResponseLine());
+        jsonObj = (JSONObject) new JSONParser().parse(client.responseLine);
       } while (jsonObj.get("status").equals("fail"));
       
       
@@ -302,29 +314,27 @@ public class WerewolfClient implements Runnable{
         
         cmd = sc.next();
         switch (cmd) {
-          case "ready": {
+          case "ready":
             if (!isReady) {
               readyReq();
             } else {
               System.out.println("Anda sudah siap!");
             }
-          }
-          break;
-          case "leave": {
+            break;
+          case "leave":
             leaveReq();
             
             is.close();
             os.close();
             clientSocket.close();
             System.out.println("Keluar dari permainan...");
-          }
           break;
-          default: {
+          default:
             System.out.println("Perintah salah!");
-          }
+            break;
         }
         
-      } while (!cmd.equals("leave") || isGameOver == true);
+      } while (!cmd.equals("leave") && isPlaying);
       
           
     } catch (UnknownHostException e) {
@@ -361,42 +371,9 @@ public class WerewolfClient implements Runnable{
             String method = (String) obj.get("method");
 
             switch(method) {
-              case "start":
-                startRes(obj);
+              case "kpu_selected" :
+                
                 break;
-              case "change_phase":
-                changePhaseRes(obj);
-                break;
-              case "vote_now":
-                if (obj.get("phase").equals("day")){
-                  // Protokol 10
-                  clientAddressReq();
-                  JSONObject obj2 = (JSONObject) parser.parse(responseLine);
-                  JSONArray arr = (JSONArray)obj2.get("clients");
-                  Iterator i = arr.iterator();
-
-                  while (i.hasNext()){
-                    obj2 = (JSONObject)i.next();
-                    System.out.println(obj2.get("id") + ". " + obj2.get("username"));
-                  }
-                  System.out.print("Pilih id yang akan dieksekusi: ");
-
-                }
-                else if (obj.get("phase").equals("night")){
-                  // Protokol 8
-                }
-                break;
-              case "game_over":
-                System.out.println("GAME OVER!");
-                System.out.println("Winner: " + obj.get("winner"));
-                isPlaying = false;
-                isGameOver = true;
-                // Declare winner and exit
-              break;
-              // default OK (getting response from server)
-              default:
-                handleOK(obj);
-              break;
             }
           } catch (Exception e) {
 
