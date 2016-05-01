@@ -48,6 +48,10 @@ public class WerewolfClient implements Runnable{
   static boolean amIKpu = false;
   static int[] votes = new int[MAX_CLIENT];
   
+  static int lastProposal = -1;
+  static int lastKpu = -1;
+  static int numProposal = 0;   // hanya berlaku untuk proposer
+  
   // IO something
   static Scanner sc = new Scanner(System.in);;
   String responseLine;
@@ -78,38 +82,6 @@ public class WerewolfClient implements Runnable{
     clientSocket = socket; 
     this.is = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
     this.os = new PrintStream(clientSocket.getOutputStream());
-  }
-  
-    /**
-   * Send message pake UDP
-   * @param message JSON Object yang mau dikirim
-   * @param address Alamat tujuan
-   * @param udpPort Port tujuan
-   */
-  public static void sendUDPMessage(JSONObject message, String address, int udpPort) {
-    
-    try {
-      InetAddress IPAddress = InetAddress.getByName(address);
-      int targetPort = udpPort;
-
-      DatagramSocket datagramSocket = new DatagramSocket();
-      UnreliableSender unreliableSender = new UnreliableSender(datagramSocket);
-    
-      byte[] sendData = message.toJSONString().getBytes();
-      DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, targetPort);
-      unreliableSender.send(sendPacket);
-      
-      datagramSocket.close();
-    } catch (UnknownHostException ex) {
-      Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
-    } catch (IOException ex) {
-      Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
-    }
-    
-  }
-  
-  public static void sendToAll(JSONObject message) {
-    for(Player p : players) sendUDPMessage(message, p.udpAddress, p.udpPort);
   }
   
   /***************** RESPONSE FROM SERVER ****************/
@@ -152,6 +124,9 @@ public class WerewolfClient implements Runnable{
       friends.add(friend);
       System.out.println("Teman: " + friend);
     }
+    lastProposal = -1;
+    lastKpu = -1;
+    numProposal = 0;
     
     sendOK();
     clientAddressReq();
@@ -160,6 +135,10 @@ public class WerewolfClient implements Runnable{
   public static void changePhaseRes(JSONObject message) {
     time = (String) message.get("time");
     days = ((Long) message.get("days")).intValue();
+    
+    if(time.equals("day")) {
+      amIKpu = false;
+    }
     
     sendOK();
   }
@@ -284,7 +263,12 @@ public class WerewolfClient implements Runnable{
   }
   
   public static void clientAcceptedReq() {
-    
+    JSONObject message = new JSONObject();
+    message = new JSONObject();
+    message.put("method", "accepted_proposal");
+    message.put("kpu_id", lastKpu);
+    message.put("description", "");
+    os.println(message.toJSONString());    
   }
   
   /**
@@ -294,8 +278,35 @@ public class WerewolfClient implements Runnable{
    * vote status = 1 jika ada player yang terbunuh vote status = -1 jika tidak
    * ada keputusan
    */
-  public static void voteResultCivilianReq() {
-
+  public static void voteResultWerewolfReq() {
+    JSONObject message = new JSONObject();
+    message = new JSONObject();
+    message.put("method", "vote_result_werewolf");
+    int best = 0, pt = -1;
+    ArrayList<ArrayList<Integer>> res = new ArrayList<ArrayList<Integer>>();
+    for(Player p : players) {
+      if(votes[p.id] > best) {
+        best = votes[p.id];
+        pt = p.id;
+      } else if(votes[p.id] == best) {
+        pt = -1;
+      }
+      if(p.isAlive == 1 && p.role.equals("civilian")) {
+        ArrayList<Integer> arr = new ArrayList<Integer>();
+        arr.add(p.id);
+        arr.add(votes[p.id]);
+        res.add(arr);
+      }
+    }
+    message.put("vote_result", res);
+    if(pt == -1) {
+      message.put("vote_status", -1);
+    } else {
+      message.put("vote_status", 1);
+      message.put("player_killed", pt);
+    }
+    
+    os.println(message.toJSONString());
   }
 
   /**
@@ -303,55 +314,35 @@ public class WerewolfClient implements Runnable{
    * melakukan voting vote status = 1 jika ada player yang terbunuh vote status
    * = -1 jika tidak ada keputusan
    */
-  public static void voteResultWerewolfReq() {
-
-  }
-  
-   /***************** CLIENT TO CLIENT REQUEST & RESPONSE ****************/
-  
-  public static void prepareProposalReq() {
-    
-  }
-  
-  public static void prepareProposalRes() {
-    
-  }
-  
-  public static void acceptProposalReq() {
-    
-  }
-  
-  public static void acceptProposalRes() {
-    
-  }
-  
-  /**
-   * Dikirimkan oleh pemain ke KPU ketika melakukan voting
-   * siapa yang akan dibunuh di malam hari
-   */
-  public static void voteWerewolfReq() {
-    if(!canVote || !role.equals("werewolf")) {
-      System.out.println("You cannot vote now or you are not werewolf");
-      return;
+  public static void voteResultCivilianReq() {
+    JSONObject message = new JSONObject();
+    message = new JSONObject();
+    message.put("method", "vote_result_civilian");
+    int best = 0, pt = -1;
+    ArrayList<ArrayList<Integer>> res = new ArrayList<ArrayList<Integer>>();
+    for (Player p : players) {
+      if (votes[p.id] > best) {
+        best = votes[p.id];
+        pt = p.id;
+      } else if (votes[p.id] == best) {
+        pt = -1;
+      }
+      if (p.isAlive == 1) {
+        ArrayList<Integer> arr = new ArrayList<Integer>();
+        arr.add(p.id);
+        arr.add(votes[p.id]);
+        res.add(arr);
+      }
     }
-    System.out.println("Siapa yang kamu mau vote?");
-    
-  }
-  
-  public static void voteWerewolfRes() {
-    
-  }
-  
-  /**
-   * Dikirimkan oleh pemain ke KPU ketika melakukan voting
-   * siapa yang akan dibunuh di siang hari
-   */
-  public static void voteCivilianReq() {
-    // handled in early games
-  }
-  
-  public static void voteCivilianRes() {
-    
+    message.put("vote_result", res);
+    if (pt == -1) {
+      message.put("vote_status", -1);
+    } else {
+      message.put("vote_status", 1);
+      message.put("player_killed", pt);
+    }
+
+    os.println(message.toJSONString());
   }
   
   public static void initiateInput() {
@@ -392,10 +383,8 @@ public class WerewolfClient implements Runnable{
             System.out.println("Status: Not Ready");
           }
         }
-        
-        System.out.println("Waiting you writing command...");
+       
         cmd = sc.next();
-        System.out.println("command adalah : " + cmd);
         switch (cmd) {
           case "ready":
             if (!isReady) {
@@ -411,10 +400,10 @@ public class WerewolfClient implements Runnable{
             clientAddressReq();
             break;
           case "voteWerewolf":
-            voteWerewolfReq();
+            DatagramReceiverThread.voteWerewolfReq();
             break;
           case "voteCivilian":
-            voteCivilianReq();
+            DatagramReceiverThread.voteCivilianReq();
             break;
           default:
             System.out.println("Perintah salah!");
