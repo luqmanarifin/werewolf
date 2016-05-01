@@ -105,6 +105,7 @@ public class DatagramReceiverThread implements Runnable{
    * *************** CLIENT TO CLIENT REQUEST & RESPONSE ***************
    */
   public static void prepareProposalReq() {
+    System.out.println("Prepare proposal request");
     JSONObject message = new JSONObject();
     message = new JSONObject();
     message.put("method", "prepare_proposal");
@@ -118,6 +119,7 @@ public class DatagramReceiverThread implements Runnable{
   }
 
   public static void prepareProposalRes(JSONObject obj, String address, int port) {
+    System.out.println("Prepare proposal response");
     ArrayList<Integer> arr = new ArrayList<Integer>();
     JSONArray json = (JSONArray) obj.get("proposal_id");
     for(int i = 0; i < json.size(); i++) {
@@ -144,6 +146,8 @@ public class DatagramReceiverThread implements Runnable{
   }
 
   public static void acceptProposalReq(String address, int port) {
+    System.out.println("Accept proposal request");
+    
     JSONObject response = new JSONObject();
     response.put("method", "accept_proposal");
     ArrayList<Integer> arr = new ArrayList<Integer>();
@@ -155,6 +159,8 @@ public class DatagramReceiverThread implements Runnable{
   }
 
   public static void acceptProposalRes(JSONObject obj, String address, int port) {
+    System.out.println("Accept proposal response");
+    
     ArrayList<Integer> arr = new ArrayList<Integer>();
     JSONArray json = (JSONArray) obj.get("proposal_id");
     for(int i = 0; i < json.size(); i++) {
