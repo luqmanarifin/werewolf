@@ -89,6 +89,7 @@ class WerewolfServerThread extends Thread {
             response.put("description", "user exists");
         }
       }
+      System.out.println(response.toJSONString());
       sendMessage(response);
   }
   

@@ -7,9 +7,12 @@ import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -24,8 +27,11 @@ public class WerewolfClient implements Runnable{
   static boolean isReceived = false;
   static boolean isReady = false;
   
+  static ArrayList<String> friends;
+  
   static String time = "night";
   static int days = 0;
+  static String role = null; 
 
   String responseLine;
   static BufferedReader is;
@@ -47,7 +53,7 @@ public class WerewolfClient implements Runnable{
   
   
   
-  /***************** RESPONSE TO SERVER ****************/
+  /***************** RESPONSE FROM SERVER ****************/
   
   public static void startRes(JSONObject message) {
     isPlaying = true;
@@ -195,39 +201,49 @@ public class WerewolfClient implements Runnable{
 
     // Membuat socket dengan host dan port number yang telah diberikan
     try {
-      // Koneksi ke server
-      System.out.println("Connecting...");
-      clientSocket = new Socket(host, hostPort);
-      is = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-      os = new PrintStream(clientSocket.getOutputStream());
-      isConnected = true;
-      System.out.println("Connected");
+      // Join sampai berhasil
+      do {
+        // Koneksi ke server
+        System.out.println("Connecting...");
+        clientSocket = new Socket(host, hostPort);
+        is = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+        os = new PrintStream(clientSocket.getOutputStream());
+        isConnected = true;
+        System.out.println("Connected");
 
-      // Threads
-      client = new WerewolfClient(clientSocket);
-      Thread tcpThread = new Thread(client);
+        // Threads
+        client = new WerewolfClient(clientSocket);
+        Thread tcpThread = new Thread(client);
+
+        tcpThread.start();
       
-      tcpThread.start();      
+        System.out.print("Masukkan username: ");
+        String username = sc.next();
 
-      // Join the game
-      System.out.print("Masukkan username: ");
-      String username = sc.next();
-
-      jsonObj = new JSONObject();
-      jsonObj.put("method", "join");
-      jsonObj.put("username", username);
-      jsonObj.put("udp_address", udpAddress);
-      jsonObj.put("udp_port", udpPort);
-      os.println(jsonObj.toJSONString());
+        jsonObj = new JSONObject();
+        jsonObj.put("method", "join");
+        jsonObj.put("username", username);
+        jsonObj.put("udp_address", udpAddress);
+        jsonObj.put("udp_port", udpPort);
+        
+        isReceived = false;
+        os.println(jsonObj.toJSONString());
+        System.out.println(jsonObj.toJSONString());
+        while(!isReceived){
+          Thread.sleep(10);
+        }
+        
+        jsonObj = (JSONObject) new JSONParser().parse(client.getResponseLine());
+      } while (jsonObj.get("status").equals("fail"));
       
-      while(!isReceived){
-        Thread.sleep(10);
-      }
+      
       // Main loop
       do {
         // Print status
         if (isPlaying){
           System.out.println("Status: Playing");
+          System.out.println("Time: " + time);
+          System.out.println("Day: " + days);
         }
         else {
           if (isReady){
@@ -238,7 +254,6 @@ public class WerewolfClient implements Runnable{
           }
         }
         
-        System.out.print("> ");
         cmd = sc.next();
         switch (cmd) {
           case "ready": {
@@ -290,6 +305,8 @@ public class WerewolfClient implements Runnable{
       System.err.println("I/O gagal!" + host);
     } catch (InterruptedException ex) {
       Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
+    } catch (ParseException ex) {
+      Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
     }
   }
   
@@ -304,18 +321,44 @@ public class WerewolfClient implements Runnable{
               if (responseLine != null){
                 System.out.println(responseLine);
                 isReceived = true;
+                Thread.sleep(20);
                 
                 try {
                   obj = (JSONObject) parser.parse(responseLine);
                   String method = (String) obj.get("method");
                   
                   switch(method) {
-                    case "start":
-                      isPlaying = true;
+                    case "start": {
+                      time = (String) obj.get("time");
+                      role = (String) obj.get("role");
+                      friends = new ArrayList<String>();
+                      JSONArray arr = (JSONArray) obj.get("friend");
+                      Iterator i = arr.iterator();
+                      while (i.hasNext()){
+                        friends.add((String)i.next());
+                        System.out.println("Teman: " + (String)arr.iterator().next());
+                      }
+                      startRes(obj);
+                    }
                     break;
-                    case "change_phase":
+                    case "change_phase":{
+                      time = (String) obj.get("time");
+                      days = (int) obj.get("days");
+                      changePhaseRes(obj);
+                    }
                     break;
-                    case "vote_now":
+                    case "vote_now":{
+                      if (obj.get("phase").equals("day")){
+                        // Protokol 10
+                      }
+                      else if (obj.get("phase").equals("night")){
+                        // Protokol 8
+                      }
+                    }
+                    break;
+                    case "game_over":{
+                      // Declare winner and exit
+                    }
                     break;
                     default:
                     break;
@@ -328,7 +371,9 @@ public class WerewolfClient implements Runnable{
 
         } catch (IOException e) {
           System.out.println("Connection ended");
-        }
+        } catch (InterruptedException ex) {
+      Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
+    }
     }
   
 }
