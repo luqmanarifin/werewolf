@@ -29,6 +29,7 @@ import org.json.simple.parser.ParseException;
 public class WerewolfClient implements Runnable{
   static boolean isConnected = false;
   static boolean isReceived = false;
+  static boolean startPaxos = false;
   
   static final int MAX_CLIENT = 10;
   
@@ -47,6 +48,7 @@ public class WerewolfClient implements Runnable{
   static boolean amIProposer = false;
   static boolean amIKpu = false;
   static int[] votes = new int[MAX_CLIENT];
+  static int allVote = 0;
   
   static int lastProposal = -1;
   static int lastKpu = -1;
@@ -103,6 +105,7 @@ public class WerewolfClient implements Runnable{
     if(kpu.id == me.id) {
       amIKpu = true;
       for(int i = 0; i < MAX_CLIENT; i++) votes[i] = 0;
+      allVote = 0;
     }
     
     sendOK();
@@ -131,16 +134,20 @@ public class WerewolfClient implements Runnable{
       lastProposal = -1;
       lastKpu = -1;
       numProposal = 0;
-
+      isReceived = false;
+      
       sendOK();
       clientAddressReq();
-      Thread.sleep(1000);
-      if(amIProposer) {
-        DatagramReceiverThread.prepareProposalReq();
-      }
-        
+      startPaxos = true;
     } catch (Exception e) {
       System.out.println(e);
+    }
+  }
+  
+  public static void triggerPaxos() {
+    if (amIProposer) {
+      System.out.println("seharusnya aku paksos");
+      DatagramReceiverThread.prepareProposalReq();
     }
   }
   
@@ -152,14 +159,19 @@ public class WerewolfClient implements Runnable{
     System.out.println(news);
     System.out.println("");
     
+    sendOK();
+    
     if(time.equals("day")) {
+      System.out.println("MALAM BERGANTI SIANG...");
+      System.out.println("");
       amIKpu = false;
       if(amIProposer) {
         DatagramReceiverThread.prepareProposalReq();
       }
+    } else {
+      System.out.println("SIANG BERGANTI MALAM...");
+      System.out.println("");
     }
-    
-    sendOK();
   }
   
   public static void voteNowRes(JSONObject message) {
@@ -170,6 +182,8 @@ public class WerewolfClient implements Runnable{
       System.out.println("But you dead. Please wait...");
       return;
     }
+    
+    //System.out.println("now " + time + " role " + me.role.equals("werewolf"));
     
     canVote = true;
     if(time.equals("day")) {
@@ -185,8 +199,10 @@ public class WerewolfClient implements Runnable{
   
   public static void gameOverRes(JSONObject message) {
     String winner = (String) message.get("winner");
+    System.out.println("");
     System.out.println("Game over!");
-    System.out.println(winner + " win the game!");
+    System.out.println(winner + " WIN THE GAME!");
+    System.out.println("");
     
     isPlaying = false;
     isReady = false;
@@ -197,26 +213,28 @@ public class WerewolfClient implements Runnable{
   /***************** CLIENT REQUEST TO SERVER ****************/
   
   public static void joinReq() throws Exception {
+    // Koneksi ke server
+    System.out.println("Connecting...");
+    cs = new Socket(host, hostPort);
+    iis = new BufferedReader(new InputStreamReader(cs.getInputStream()));
+    oos = new PrintStream(cs.getOutputStream());
+    isConnected = true;
+    System.out.println("Connected");
+
+    // Threads
+    client = new WerewolfClient(cs);
+    Thread tcpThread = new Thread(client);
+    tcpThread.start();
+
+    // Threads for UDP listener
+    udpClient = new DatagramReceiverThread(udpPort);
+    Thread udpThread = new Thread(udpClient);
+    udpThread.start();
+    
+    boolean ok = false;
+    
     // Join sampai berhasil
     do {
-      // Koneksi ke server
-      System.out.println("Connecting...");
-      cs = new Socket(host, hostPort);
-      iis = new BufferedReader(new InputStreamReader(cs.getInputStream()));
-      oos = new PrintStream(cs.getOutputStream());
-      isConnected = true;
-      System.out.println("Connected");
-
-      // Threads
-      client = new WerewolfClient(cs);
-      Thread tcpThread = new Thread(client);
-      tcpThread.start();
-
-      // Threads for UDP listener
-      udpClient = new DatagramReceiverThread(udpPort);
-      Thread udpThread = new Thread(udpClient);
-      udpThread.start();
-
       System.out.print("Masukkan username: ");
       username = sc.next();
 
@@ -229,13 +247,15 @@ public class WerewolfClient implements Runnable{
       oos.println(jsonObj.toJSONString());
 
       System.out.println(jsonObj.toJSONString());
+      isReceived = false;
       while (!isReceived) {
         Thread.sleep(10);
       }
 
       jsonObj = (JSONObject) new JSONParser().parse(client.responseLine);
-      playerId = ((Long) jsonObj.get("player_id")).intValue();
-    } while (!jsonObj.get("status").equals("ok"));
+      ok = jsonObj.get("status").equals("ok");
+      if(ok) playerId = ((Long) jsonObj.get("player_id")).intValue();
+    } while (!ok);
 
     me = new Player(username, playerId);
     me.isAlive = 1;
@@ -282,6 +302,8 @@ public class WerewolfClient implements Runnable{
   }
   
   public static void clientAcceptedReq() {
+    System.out.println("Sending " + lastKpu + " as best KPU to server");
+    
     JSONObject message = new JSONObject();
     message = new JSONObject();
     message.put("method", "accepted_proposal");
@@ -298,6 +320,8 @@ public class WerewolfClient implements Runnable{
    * ada keputusan
    */
   public static void voteResultWerewolfReq() {
+    System.out.println(allVote + "/" + players.size() + " voted");
+    if(allVote < players.size()) return;
     JSONObject message = new JSONObject();
     message = new JSONObject();
     message.put("method", "vote_result_werewolf");
@@ -334,6 +358,8 @@ public class WerewolfClient implements Runnable{
    * = -1 jika tidak ada keputusan
    */
   public static void voteResultCivilianReq() {
+    System.out.println(allVote + "/" + players.size() + " voted");
+    if(allVote != players.size()) return;
     JSONObject message = new JSONObject();
     message = new JSONObject();
     message.put("method", "vote_result_civilian");
@@ -376,7 +402,6 @@ public class WerewolfClient implements Runnable{
     System.out.print("Port UDP: ");
     udpPort = sc.nextInt();
   }
-  
   
   
   public static void main(String[] args) {
@@ -450,6 +475,11 @@ public class WerewolfClient implements Runnable{
     JSONParser parser = new JSONParser();
     try {
       while (isConnected){
+        if(startPaxos && isReceived) {
+          startPaxos = false;
+          isReceived = false;
+          triggerPaxos();
+        }
         // Message from server to client
         responseLine = is.readLine();
         if (responseLine != null){
@@ -457,10 +487,9 @@ public class WerewolfClient implements Runnable{
           Thread.sleep(20);
 
           try {
-            System.out.println(responseLine);
+            System.out.println("receive: " + responseLine);
             obj = (JSONObject) parser.parse(responseLine);
             String method = (String) obj.get("method");
-            System.out.println("method " + method);
             switch(method) {
               case "kpu_selected":
                 kpuSelectedRes(obj);
@@ -487,6 +516,7 @@ public class WerewolfClient implements Runnable{
       }
 
     } catch (IOException e) {
+      System.out.println(e);
       System.out.println("Connection ended");
     } catch (InterruptedException ex) {
       Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
@@ -508,7 +538,9 @@ public class WerewolfClient implements Runnable{
     }
     Collections.sort(a);
     Collections.reverse(a);
-    amIKpu = me.id == a.get(0) || me.id == a.get(1);
+    amIProposer = me.id == a.get(0) || me.id == a.get(1);
+    System.out.println("debug proposer " + amIProposer);
+    isReceived = true;
   }
   
   private void updateWerewolfFriend() {
@@ -516,6 +548,9 @@ public class WerewolfClient implements Runnable{
       for(Player p : players) {
         if(name.equals(p.username)) {
           p.role = "werewolf";
+        }
+        if(name.equals(me.username)) {
+          me.role = "werewolf";
         }
       }
     }
@@ -545,6 +580,5 @@ public class WerewolfClient implements Runnable{
         printPlayers();
       }
     }
-    System.out.println("Handle OK done.");
   }
 }

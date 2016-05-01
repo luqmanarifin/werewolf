@@ -23,7 +23,7 @@ public class WerewolfServer {
     } catch (IOException e) {
       System.out.println(e);
     }
-    System.out.println("Thread started!");
+    System.out.println("Server started!");
     
     // Membuat socket baru setiap ada koneksi dari client
     while (true) {

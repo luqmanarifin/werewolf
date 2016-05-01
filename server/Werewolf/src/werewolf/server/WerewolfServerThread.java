@@ -23,10 +23,11 @@ class WerewolfServerThread extends Thread {
   private boolean isLeave = false;
   private int myPlayerId; // Id player yang ditangani oleh thread ini
   
-  private boolean isWaiting = false;
-  private int[] votes = new int[GC.MAX_CLIENT];
-  private int voteCount = 0;
-  private long time;
+  private static boolean isVotingKpu = false;
+  private static boolean isWaiting = false;
+  private static int[] votes = new int[GameComponent.MAX_CLIENT];
+  private static int voteCount = 0;
+  private static long time;
   
   public WerewolfServerThread(Socket clientSocket, GameComponent gc, int playerId) {
     this.clientSocket = clientSocket;
@@ -118,7 +119,7 @@ class WerewolfServerThread extends Thread {
 
     GameComponent.players[myPlayerId].isReady = true;
     
-    if (allReady() && GC.connectedPlayer >= 3) {
+    if (allReady() && GC.connectedPlayer >= 6) {
       startReq();
     }
     
@@ -136,6 +137,9 @@ class WerewolfServerThread extends Thread {
       client.put("address", GC.players[i].getUdpAddress());
       client.put("port", GC.players[i].getUdpPort());
       client.put("username", GC.players[i].getUsername());
+      if(GC.players[i].getAlive() == 0) {
+        client.put("role", GC.players[i].getRole());
+      }
       clients.add(client);
       System.out.println("added : " + client.toString());
     }
@@ -198,20 +202,27 @@ class WerewolfServerThread extends Thread {
   }
   
   private void acceptedProposalRes(JSONObject message) {
-    int kpu_id = ((Long) message.get("kpu_ids")).intValue();
+    int kpu_id = ((Long) message.get("kpu_id")).intValue();
+    System.out.println("bef : isWaiting " + isWaiting + " isVotingKpu " + isVotingKpu);
     if(!isWaiting) {
-      isWaiting = true;
-      time = System.nanoTime();
-      for(int i = 0; i < GC.MAX_CLIENT; i++) votes[i] = 0;
-      voteCount = 1;
-      
-      votes[kpu_id]++;
-      
+      if(isVotingKpu) {
+        System.out.println("get vote " + kpu_id + " as kpu");
+        isWaiting = true;
+        isVotingKpu = false;
+        time = System.nanoTime();
+        for(int i = 0; i < GC.MAX_CLIENT; i++) votes[i] = 0;
+        voteCount = 1;
+
+        votes[kpu_id]++;
+      }
     } else {
+      System.out.println("get vote " + kpu_id + " as kpu");
       long delta = System.nanoTime() - time;
       votes[kpu_id]++;
       voteCount++;
-      if(delta > 1e10 || GC.connectedPlayer == voteCount) {
+      System.out.println("get vote " + voteCount + "/" + GC.connectedPlayer);
+      System.out.println("time collapsed " + delta / 1e9 + " sec");
+      if(delta > 1e10 || GC.connectedPlayer <= voteCount) {
         isWaiting = false;
         int best = -1, p = -1;
         for(int i = 0; i < GC.MAX_CLIENT; i++) {
@@ -225,6 +236,7 @@ class WerewolfServerThread extends Thread {
         voteNowReq();
       }
     }
+    System.out.println("aft : isWaiting " + isWaiting + " isVotingKpu " + isVotingKpu);
   }
   
   /********** REQUEST METHOD FROM SERVER TO CLIENT ***********/
@@ -232,6 +244,7 @@ class WerewolfServerThread extends Thread {
     GC.isDay = true;
     GC.days = 0;
     GC.isGameStarted = true;
+    GC.remainingVote = 2;
     
     for(int i = 0; i < GC.MAX_CLIENT; i++) {
       if(GC.threads[i] == null) continue;
@@ -286,6 +299,7 @@ class WerewolfServerThread extends Thread {
       GC.threads[i].sendMessage(response);
     }
     System.out.println("Game started");
+    isVotingKpu = true;
   }
   
   /*
@@ -303,14 +317,19 @@ class WerewolfServerThread extends Thread {
     message.put("time", GC.getTime());
     message.put("days", GC.days);
     if(who != null) {
-      message.put("description", who + " (" + GameComponent.getRole(who) + ") has been killed");
+      message.put("description", who + " (" + GameComponent.getRole(who) + ") has been killed by " + (GC.isDay? "WEREWOLF" : "civilians"));
     } else {
       message.put("description", "No one killed.");
     }
-    
     broadcastMessage(message);
+    
+    if(GC.isDay) {
+      isVotingKpu = true;
+    } else {
+      voteNowReq();
+    }
+    
     GC.remainingVote = 2;
-    voteNowReq();
     System.out.println("Change phase");
   }
   
@@ -336,6 +355,7 @@ class WerewolfServerThread extends Thread {
     String name = winner == 1? "werewolf" : "civilian";
     message.put("winner", name);
     message.put("description", name + " win");
+    broadcastMessage(message);
   }
   
   /*
@@ -346,6 +366,7 @@ class WerewolfServerThread extends Thread {
     JSONObject message = new JSONObject();
     message.put("method", "kpu_selected");
     message.put("kpu_id", num);
+    System.out.println("Choose " + num + " as KPU");
     
     broadcastMessage(message);
   }
@@ -359,7 +380,7 @@ class WerewolfServerThread extends Thread {
   private int isWin() {
     int wolfAlive = 0, civAlive = 0;
     for(int i = 0; i < GC.MAX_CLIENT; i++) {
-      if(GC.threads[i] == null) continue;
+      if(GC.threads[i] == null || GC.players[i] == null) continue;
       if(GC.players[i].getAlive() == 1) {
         if(GC.players[i].isWolf) {
           wolfAlive++;
@@ -368,6 +389,7 @@ class WerewolfServerThread extends Thread {
         }
       }
     }
+    System.out.println("wolf: " + wolfAlive + " civ: " + civAlive);
     if(wolfAlive == 0) {
       return -1;
     } else if(wolfAlive == civAlive) {
@@ -448,8 +470,9 @@ class WerewolfServerThread extends Thread {
           System.out.println("Got OK from " + myPlayerId);
         }
         int stateWinner = isWin();
-        if(stateWinner != 0) {
+        if(stateWinner != 0 && GC.isGameStarted) {
           gameOverReq(stateWinner);
+          break;
         }
       }
       System.out.println("Good bye " + myPlayerId);
@@ -466,14 +489,13 @@ class WerewolfServerThread extends Thread {
        * could be accepted by the server.
        */
       
-    } catch (Exception e) {
+    } catch (IOException ee) {
+      Exception e = new Exception();
+      System.out.println(ee);
       System.out.println("Good bye " + myPlayerId);
       GameComponent.threads[myPlayerId] = null;
 
       try {
-        /*
-        * Close the output stream, close the input stream, close the socket.
-        */
         is.close();
         os.close();
         clientSocket.close();

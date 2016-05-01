@@ -52,19 +52,19 @@ public class DatagramReceiverThread implements Runnable{
    * @param udpPort Port tujuan
    */
   public static void sendUDPMessage(JSONObject message, String address, int udpPort) {
-
+    System.out.println("send: " + message.toString());
+    System.out.println("to: " + address + " " + udpPort);
+    
     try {
       InetAddress IPAddress = InetAddress.getByName(address);
       int targetPort = udpPort;
 
-      DatagramSocket datagramSocket = new DatagramSocket();
-      UnreliableSender unreliableSender = new UnreliableSender(datagramSocket);
+      UnreliableSender unreliableSender = new UnreliableSender(socket);
 
       byte[] sendData = message.toJSONString().getBytes();
       DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, targetPort);
       unreliableSender.send(sendPacket);
-
-      datagramSocket.close();
+      
     } catch (UnknownHostException ex) {
       Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
     } catch (IOException ex) {
@@ -99,6 +99,24 @@ public class DatagramReceiverThread implements Runnable{
       }
     }
     return false;
+  }
+  
+  public static String getAddress(int id) {
+    for(Player p : WerewolfClient.players) {
+      if(p.id == id) {
+        return p.udpAddress;
+      }
+    }
+    return null;
+  }
+  
+  public static int getPort(int id) {
+    for(Player p : WerewolfClient.players) {
+      if(p.id == id) {
+        return p.udpPort;
+      }
+    }
+    return 0;
   }
   
   /**
@@ -219,10 +237,12 @@ public class DatagramReceiverThread implements Runnable{
   public static void voteWerewolfRes(JSONObject obj, String address, int port) {
     int player_id = ((Long) obj.get("player_id")).intValue();
     WerewolfClient.votes[player_id]++;
+    WerewolfClient.allVote++;
     JSONObject response = new JSONObject();
     response.put("status", "ok");
     response.put("description", "");
     sendUDPMessage(response, address, port);
+    WerewolfClient.voteResultWerewolfReq();
   }
 
   /**
@@ -238,6 +258,7 @@ public class DatagramReceiverThread implements Runnable{
       System.out.println("Civilian now voting...");
       return;
     }
+    //WerewolfClient.canVote = false;
     System.out.println("Who do you want to kill?");
 
     boolean valid = false;
@@ -263,10 +284,12 @@ public class DatagramReceiverThread implements Runnable{
   public static void voteCivilianRes(JSONObject obj, String address, int port) {
     int player_id = ((Long) obj.get("player_id")).intValue();
     WerewolfClient.votes[player_id]++;
+    WerewolfClient.allVote++;
     JSONObject response = new JSONObject();
     response.put("status", "ok");
     response.put("description", "");
     sendUDPMessage(response, address, port);
+    WerewolfClient.voteResultCivilianReq();
   }
  
   @Override
@@ -277,13 +300,12 @@ public class DatagramReceiverThread implements Runnable{
         socket.receive(packet);
         String received = new String(packet.getData(), 0, packet.getLength());
         System.out.println("UDP Response: " + received);
-        String address = packet.getAddress().toString();
+        String address = packet.getAddress().getHostAddress();
         int port = packet.getPort();
         System.out.println("From: " + address + " " + port);
         System.out.println("");
         
         try {
-          System.out.println(received);
           JSONObject obj = (JSONObject) parser.parse(received);
           String method = (String) obj.get("method");
           if(method != null) {
@@ -294,13 +316,19 @@ public class DatagramReceiverThread implements Runnable{
               case "accept_proposal":
                 acceptProposalRes(obj, address, port);
                 break;
+              case "vote_civilian":
+                voteCivilianRes(obj, address, port);
+                break;
+              case "vote_werewolf":
+                voteWerewolfRes(obj, address, port);
+                break;
               default:
                 break;
             }
           } else {
             String desc = (String) obj.get("description");
             if(desc.equals("accepted")) {
-              acceptProposalReq(packet.getAddress().toString(), packet.getPort());
+              acceptProposalReq(address, port);
             }
           }
         } catch (Exception e) {
