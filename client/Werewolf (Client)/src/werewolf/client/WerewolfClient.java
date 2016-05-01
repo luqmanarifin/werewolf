@@ -247,16 +247,21 @@ public class WerewolfClient implements Runnable{
   
   public static void leaveReq() {
     try {
-      is.close();
-      os.close();
-      clientSocket.close();
-      System.out.println("Keluar dari permainan...");
-      
       JSONObject message = new JSONObject();
       message.put("method", "leave");
       os.println(message.toJSONString());
       
       isConnected = false;
+      iis.close();
+      oos.close();
+      cs.close();
+      is.close();
+      os.close();
+      clientSocket.close();
+      DatagramReceiverThread.socket.close();
+      
+      System.out.println("Keluar dari permainan...");
+      
     } catch (IOException ex) {
       Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
     }
@@ -389,6 +394,7 @@ public class WerewolfClient implements Runnable{
           }
         }
         
+        System.out.println("Waiting you writing command...");
         cmd = sc.next();
         System.out.println("command adalah : " + cmd);
         switch (cmd) {
@@ -415,9 +421,8 @@ public class WerewolfClient implements Runnable{
             System.out.println("Perintah salah!");
             break;
         }
-        System.out.println("command tereksekusi");
-      } while (!cmd.equals("leave") && isPlaying);
-      
+      } while (!cmd.equals("leave"));
+      System.out.println("Why did thou leave?");
           
     } catch (UnknownHostException e) {
       System.err.println("Alamat tidak valid!" + host);

@@ -18,8 +18,8 @@ import java.util.logging.Logger;
  */
 public class DatagramReceiverThread implements Runnable{
 
-  DatagramPacket packet;
-  DatagramSocket socket;
+  public static DatagramPacket packet;
+  public static DatagramSocket socket;
   int listenPort;
   
   byte[] buf;
@@ -39,14 +39,15 @@ public class DatagramReceiverThread implements Runnable{
   @Override
   public void run() {
     try {
-      while (true){
+      while (WerewolfClient.isConnected){
         socket.receive(packet);
         String received = new String(packet.getData(), 0, packet.getLength());
         System.out.println("UDP Response: " + received);
       }
-    } catch (IOException ex) {
-      Logger.getLogger(DatagramReceiverThread.class.getName()).log(Level.SEVERE, null, ex);
+    } catch(Exception e) {
+      System.out.println("Unconnecting UDP");
     }
+    System.out.println("keluar dari UDP");
   }
     
 }
