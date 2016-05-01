@@ -89,6 +89,7 @@ class WerewolfServerThread extends Thread {
             response.put("description", "user exists");
         }
       }
+      System.out.println(response.toJSONString());
       sendMessage(response);
   }
   
@@ -109,6 +110,8 @@ class WerewolfServerThread extends Thread {
     response.put("description", "waiting for other player to start");
     sendMessage(response);
 
+    GameComponent.players[myPlayerId].isReady = true;
+    
     if (allReady() && GC.connectedPlayer >= 3) {
       startReq();
     }
