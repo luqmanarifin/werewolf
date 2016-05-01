@@ -472,7 +472,6 @@ class WerewolfServerThread extends Thread {
         int stateWinner = isWin();
         if(stateWinner != 0 && GC.isGameStarted) {
           gameOverReq(stateWinner);
-          break;
         }
       }
       System.out.println("Good bye " + myPlayerId);

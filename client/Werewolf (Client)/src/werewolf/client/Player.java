@@ -13,6 +13,15 @@ public class Player {
     public int udpPort;
     public String udpAddress;
     
+    public Player(Player p) {
+      username = p.username;
+      id = p.id;
+      isAlive = p.isAlive;
+      role = p.role;
+      udpPort = p.udpPort;
+      udpAddress = p.udpAddress;
+    }
+    
     public Player() {
         this.username = null;
         this.id = 0;

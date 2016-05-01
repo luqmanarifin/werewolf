@@ -99,7 +99,7 @@ public class WerewolfClient implements Runnable{
     
     for(Player p : players) {
       if(p.id == kpu_id) {
-        kpu = p;
+        kpu = new Player(p);
       }
     }
     if(kpu.id == me.id) {
@@ -184,6 +184,8 @@ public class WerewolfClient implements Runnable{
     }
     
     //System.out.println("now " + time + " role " + me.role.equals("werewolf"));
+    allVote = 0;
+    for(int i = 0; i < votes.length; i++) votes[i] = 0;
     
     canVote = true;
     if(time.equals("day")) {
@@ -359,7 +361,7 @@ public class WerewolfClient implements Runnable{
    */
   public static void voteResultCivilianReq() {
     System.out.println(allVote + "/" + players.size() + " voted");
-    if(allVote != players.size()) return;
+    if(allVote < players.size()) return;
     JSONObject message = new JSONObject();
     message = new JSONObject();
     message.put("method", "vote_result_civilian");
@@ -516,7 +518,7 @@ public class WerewolfClient implements Runnable{
       }
 
     } catch (IOException e) {
-      System.out.println(e);
+      e.printStackTrace();
       System.out.println("Connection ended");
     } catch (InterruptedException ex) {
       Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
