@@ -5,6 +5,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -38,7 +41,7 @@ public class WerewolfClient implements Runnable{
   static BufferedReader is;
   static PrintStream os;
   Socket clientSocket;
-  DatagramClientThread udpClient = new DatagramClientThread();
+  static DatagramReceiverThread udpClient;
   Thread udpThread = new Thread(udpClient);
 
   
@@ -179,6 +182,34 @@ public class WerewolfClient implements Runnable{
     
   }
   
+  /**
+   * Send message pake UDP
+   * @param message JSON Object yang mau dikirim
+   * @param address Alamat tujuan
+   * @param udpPort Port tujuan
+   */
+  public static void sendUDPMessage(JSONObject message, String address, int udpPort) {
+    
+    try {
+      InetAddress IPAddress = InetAddress.getByName(address);
+      int targetPort = udpPort;
+
+      DatagramSocket datagramSocket = new DatagramSocket();
+      UnreliableSender unreliableSender = new UnreliableSender(datagramSocket);
+    
+      byte[] sendData = message.toJSONString().getBytes();
+      DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, targetPort);
+      unreliableSender.send(sendPacket);
+      
+      datagramSocket.close();
+    } catch (UnknownHostException ex) {
+      Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
+    } catch (IOException ex) {
+      Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
+    }
+    
+  }
+  
  
   public static void main(String[] args) {
 
@@ -203,10 +234,10 @@ public class WerewolfClient implements Runnable{
     host = sc.next();
     System.out.print("Server Port: ");
     hostPort = sc.nextInt();
-//    System.out.print("Address UDP:");
-//    udpAddress = sc.next();
-//    System.out.print("Port UDP:");
-//    udpPort = sc.nextInt();
+    System.out.print("Your Address: ");
+    udpAddress = sc.next();
+    System.out.print("Port UDP: ");
+    udpPort = sc.nextInt();
 
     // Membuat socket dengan host dan port number yang telah diberikan
     try {
@@ -225,6 +256,12 @@ public class WerewolfClient implements Runnable{
         Thread tcpThread = new Thread(client);
 
         tcpThread.start();
+        
+        
+        // Threads for UDP listener
+        udpClient = new DatagramReceiverThread(udpPort);
+        Thread udpThread = new Thread(udpClient);
+        udpThread.start();
       
         System.out.print("Masukkan username: ");
         String username = sc.next();
