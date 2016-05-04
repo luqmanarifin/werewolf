@@ -157,21 +157,21 @@ class WerewolfServerThread extends Thread {
    * @param message 
    */
   private void voteResultWerewolfRes(JSONObject message) {
-      int vote_status = ((Long) message.get("vote_status")).intValue();
-      
-      if (vote_status == 1) {
-        int player_killed = ((Long) message.get("player_killed")).intValue();
-        GC.players[player_killed].die();
-        
-        JSONObject response = new JSONObject();
-        response.put("status", "ok");
-        response.put("description", "");
-        sendMessage(response);
-        
-        changePhaseReq(GC.players[player_killed].getUsername());
-      } else {
-        voteNowReq();
-      }
+    int vote_status = ((Long) message.get("vote_status")).intValue();
+
+    JSONObject response = new JSONObject();
+    response.put("status", "ok");
+    response.put("description", "");
+    sendMessage(response);
+    
+    if (vote_status == 1) {
+      int player_killed = ((Long) message.get("player_killed")).intValue();
+      GC.players[player_killed].die();
+
+      changePhaseReq(GC.players[player_killed].getUsername());
+    } else {
+      voteNowReq();
+    }
   }
   
   /**
@@ -182,14 +182,15 @@ class WerewolfServerThread extends Thread {
     int vote_status = ((Long) message.get("vote_status")).intValue();
     GC.remainingVote--;
     System.out.println(GC.remainingVote + " votes remaining");
+    
+    JSONObject response = new JSONObject();
+    response.put("status", "ok");
+    response.put("description", "");
+    sendMessage(response);
+    
     if (vote_status == 1) {
       int player_killed = ((Long) message.get("player_killed")).intValue();
       GC.players[player_killed].die();
-
-      JSONObject response = new JSONObject();
-      response.put("status", "ok");
-      response.put("description", "");
-      sendMessage(response);
 
       changePhaseReq(GC.players[player_killed].getUsername());
     } else {
@@ -202,41 +203,43 @@ class WerewolfServerThread extends Thread {
   }
   
   private void acceptedProposalRes(JSONObject message) {
-    int kpu_id = ((Long) message.get("kpu_id")).intValue();
-    System.out.println("bef : isWaiting " + isWaiting + " isVotingKpu " + isVotingKpu);
-    if(!isWaiting) {
-      if(isVotingKpu) {
-        System.out.println("get vote " + kpu_id + " as kpu");
-        isWaiting = true;
-        isVotingKpu = false;
-        time = System.nanoTime();
-        for(int i = 0; i < GC.MAX_CLIENT; i++) votes[i] = 0;
-        voteCount = 1;
+    synchronized(GC) {
+      int kpu_id = ((Long) message.get("kpu_id")).intValue();
+      System.out.println("bef : isWaiting " + isWaiting + " isVotingKpu " + isVotingKpu);
+      if(!isWaiting) {
+        if(isVotingKpu) {
+          System.out.println("get vote " + kpu_id + " as kpu");
+          isWaiting = true;
+          isVotingKpu = false;
+          time = System.nanoTime();
+          for(int i = 0; i < GC.MAX_CLIENT; i++) votes[i] = 0;
+          voteCount = 1;
 
-        votes[kpu_id]++;
-      }
-    } else {
-      System.out.println("get vote " + kpu_id + " as kpu");
-      long delta = System.nanoTime() - time;
-      votes[kpu_id]++;
-      voteCount++;
-      System.out.println("get vote " + voteCount + "/" + GC.connectedPlayer);
-      System.out.println("time collapsed " + delta / 1e9 + " sec");
-      if(delta > 1e10 || GC.connectedPlayer <= voteCount) {
-        isWaiting = false;
-        int best = -1, p = -1;
-        for(int i = 0; i < GC.MAX_CLIENT; i++) {
-          if(votes[i] > best) {
-            best = votes[i];
-            p = i;
-          }
+          votes[kpu_id]++;
         }
-        // kpu selected vote now
-        kpuSelectedReq(p);
-        voteNowReq();
+      } else {
+        System.out.println("get vote " + kpu_id + " as kpu");
+        long delta = System.nanoTime() - time;
+        votes[kpu_id]++;
+        voteCount++;
+        System.out.println("get vote " + voteCount + "/" + GC.connectedPlayer);
+        System.out.println("time collapsed " + delta / 1e9 + " sec");
+        if(delta > 1e10 || GC.connectedPlayer <= voteCount) {
+          isWaiting = false;
+          int best = -1, p = -1;
+          for(int i = 0; i < GC.MAX_CLIENT; i++) {
+            if(votes[i] > best) {
+              best = votes[i];
+              p = i;
+            }
+          }
+          // kpu selected vote now
+          kpuSelectedReq(p);
+          voteNowReq();
+        }
       }
+      System.out.println("aft : isWaiting " + isWaiting + " isVotingKpu " + isVotingKpu);
     }
-    System.out.println("aft : isWaiting " + isWaiting + " isVotingKpu " + isVotingKpu);
   }
   
   /********** REQUEST METHOD FROM SERVER TO CLIENT ***********/
@@ -254,24 +257,25 @@ class WerewolfServerThread extends Thread {
     Random random = new Random();
     boolean good = false;
     while(!good) {
+      int all = 0;
       for(int i = 0; i < GC.MAX_CLIENT; i++) {
         if(GC.threads[i] == null) continue;
-        if(random.nextDouble() < (double) 1 / 3) {
-          GC.players[i].isWolf = false; 
-        } else {
-          GC.players[i].isWolf = true; 
-        }
+        all++;
       }
-      int wolf = 0, civ = 0;
+      int wolf = all / 3;
+      int realityWolf = 0;
+      double treshold = (double) wolf / all;
       for(int i = 0; i < GC.MAX_CLIENT; i++) {
         if(GC.threads[i] == null) continue;
-        if(GC.players[i].isWolf) {
-          wolf++;
+        double rand = new Random().nextDouble();
+        if(rand < treshold) {
+          GC.players[i].isWolf = true;
+          realityWolf++;
         } else {
-          civ++;
+          GC.players[i].isWolf = false;
         }
       }
-      good = (wolf >= 1 && civ >= 2 && wolf != civ); 
+      good = wolf == realityWolf;
     }
     
     ArrayList<String> listWolf = new ArrayList();
@@ -322,6 +326,12 @@ class WerewolfServerThread extends Thread {
       message.put("description", "No one killed.");
     }
     broadcastMessage(message);
+    
+    int stateWinner = isWin();
+    if (stateWinner != 0 && GC.isGameStarted) {
+      gameOverReq(stateWinner);
+      return;
+    }
     
     if(GC.isDay) {
       isVotingKpu = true;
@@ -389,7 +399,7 @@ class WerewolfServerThread extends Thread {
         }
       }
     }
-    System.out.println("wolf: " + wolfAlive + " civ: " + civAlive);
+    System.out.println("Werewolf: " + wolfAlive + " CivAlive: " + civAlive);
     if(wolfAlive == 0) {
       return -1;
     } else if(wolfAlive == civAlive) {
@@ -468,10 +478,6 @@ class WerewolfServerThread extends Thread {
           }
         } catch(NullPointerException e) {
           System.out.println("Got OK from " + myPlayerId);
-        }
-        int stateWinner = isWin();
-        if(stateWinner != 0 && GC.isGameStarted) {
-          gameOverReq(stateWinner);
         }
       }
       System.out.println("Good bye " + myPlayerId);

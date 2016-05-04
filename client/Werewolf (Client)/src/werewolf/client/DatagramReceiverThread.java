@@ -258,7 +258,6 @@ public class DatagramReceiverThread implements Runnable{
       System.out.println("Civilian now voting...");
       return;
     }
-    //WerewolfClient.canVote = false;
     System.out.println("Who do you want to kill?");
 
     boolean valid = false;
@@ -326,6 +325,10 @@ public class DatagramReceiverThread implements Runnable{
                 break;
             }
           } else {
+            String status = (String) obj.get("status");
+            if(status.equals("ok")) {
+              WerewolfClient.canVote = false;
+            }
             String desc = (String) obj.get("description");
             if(desc.equals("accepted")) {
               acceptProposalReq(address, port);

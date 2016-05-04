@@ -24,7 +24,7 @@ import org.json.simple.parser.ParseException;
 
 /**
  *
- * @author Husni & Adin
+ * 
  */
 public class WerewolfClient implements Runnable{
   static boolean isConnected = false;
@@ -79,6 +79,28 @@ public class WerewolfClient implements Runnable{
   static PrintStream oos;
   static WerewolfClient client;
   static Socket cs = null;
+  
+  public static int playerAlive() {
+    int ans = 0;
+    for(Player p : players) {
+      if(p.isAlive == 1) {
+        ans++;
+      }
+    }
+    return ans;
+  }
+  
+  public static int werewolfAlive() {
+    int ans = players.size() / 3;
+    for(Player p : players) {
+      if(p.isAlive == 0) {
+        if(p.role.equals("werewolf"))  {
+          ans--;
+        }
+      }
+    }
+    return ans;
+  }
   
   public WerewolfClient(Socket socket) throws IOException{
     clientSocket = socket; 
@@ -176,6 +198,14 @@ public class WerewolfClient implements Runnable{
   
   public static void voteNowRes(JSONObject message) {
     time = (String) message.get("phase");
+    
+    WerewolfClient.clientAddressReq();
+    System.out.println("");
+    try {
+      Thread.sleep(1000);
+    } catch (InterruptedException ex) {
+      Logger.getLogger(DatagramReceiverThread.class.getName()).log(Level.SEVERE, null, ex);
+    }
     
     if(me.isAlive == 0) {
       System.out.println("Now time to vote.");
@@ -322,8 +352,8 @@ public class WerewolfClient implements Runnable{
    * ada keputusan
    */
   public static void voteResultWerewolfReq() {
-    System.out.println(allVote + "/" + players.size() + " voted");
-    if(allVote < players.size()) return;
+    System.out.println(allVote + "/" + werewolfAlive() + " voted");
+    if(allVote < werewolfAlive()) return;
     JSONObject message = new JSONObject();
     message = new JSONObject();
     message.put("method", "vote_result_werewolf");
@@ -360,8 +390,8 @@ public class WerewolfClient implements Runnable{
    * = -1 jika tidak ada keputusan
    */
   public static void voteResultCivilianReq() {
-    System.out.println(allVote + "/" + players.size() + " voted");
-    if(allVote < players.size()) return;
+    System.out.println(allVote + "/" + playerAlive() + " voted");
+    if(allVote < playerAlive()) return;
     JSONObject message = new JSONObject();
     message = new JSONObject();
     message.put("method", "vote_result_civilian");
@@ -551,9 +581,11 @@ public class WerewolfClient implements Runnable{
         if(name.equals(p.username)) {
           p.role = "werewolf";
         }
-        if(name.equals(me.username)) {
-          me.role = "werewolf";
-        }
+      }
+    }
+    for(Player p : players) {
+      if(p.id == me.id) {
+        me = p;
       }
     }
   }
