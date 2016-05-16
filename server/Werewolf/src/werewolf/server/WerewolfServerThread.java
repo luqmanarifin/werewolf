@@ -224,6 +224,7 @@ class WerewolfServerThread extends Thread {
         voteCount++;
         System.out.println("get vote " + voteCount + "/" + GC.connectedPlayer);
         System.out.println("time collapsed " + delta / 1e9 + " sec");
+        
         if(delta > 1e10 || GC.connectedPlayer <= voteCount) {
           isWaiting = false;
           int best = -1, p = -1;
@@ -370,7 +371,6 @@ class WerewolfServerThread extends Thread {
   
   /*
    * Dikirimkan oleh server ketika KPU terpilih
-   * METHODNYA BELUM KELAR
    */  
   private void kpuSelectedReq(int num) {
     JSONObject message = new JSONObject();

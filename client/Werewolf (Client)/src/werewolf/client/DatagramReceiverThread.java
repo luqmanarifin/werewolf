@@ -72,6 +72,27 @@ public class DatagramReceiverThread implements Runnable{
     }
 
   }
+  
+  public static void sendUDPUnreliable(JSONObject message, String address, int udpPort) {
+    System.out.println("send: " + message.toString());
+    System.out.println("to: " + address + " " + udpPort);
+    
+    try {
+      InetAddress IPAddress = InetAddress.getByName(address);
+      int targetPort = udpPort;
+
+      UnreliableSender unreliableSender = new UnreliableSender(socket);
+
+      byte[] sendData = message.toJSONString().getBytes();
+      DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, targetPort);
+      unreliableSender.unreliableSend(sendPacket);
+      
+    } catch (UnknownHostException ex) {
+      Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
+    } catch (IOException ex) {
+      Logger.getLogger(WerewolfClient.class.getName()).log(Level.SEVERE, null, ex);
+    }
+  }
 
   public static void sendToKpu(JSONObject message) {
     sendUDPMessage(message, WerewolfClient.kpu.udpAddress, WerewolfClient.kpu.udpPort);
@@ -80,6 +101,12 @@ public class DatagramReceiverThread implements Runnable{
   public static void sendToAll(JSONObject message) {
     for (Player p : WerewolfClient.players) {
       sendUDPMessage(message, p.udpAddress, p.udpPort);
+    }
+  }
+  
+  public static void sendToAllUnreliable(JSONObject message) {
+    for (Player p : WerewolfClient.players) {
+      sendUDPUnreliable(message, p.udpAddress, p.udpPort);
     }
   }
   
