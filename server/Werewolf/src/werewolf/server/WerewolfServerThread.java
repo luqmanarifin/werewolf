@@ -238,7 +238,7 @@ class WerewolfServerThread extends Thread {
               p = i;
             }
           }
-          kpuSelected = p;
+          
           // kpu selected vote now
           kpuSelectedReq(p);
           voteNowReq();
@@ -250,7 +250,7 @@ class WerewolfServerThread extends Thread {
         @Override
         public void run() {
           System.out.println("INI THREAD BARU WOI!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-          selectKPU(kpuSelected);
+          selectKPU();
         }
       });
 
@@ -258,11 +258,20 @@ class WerewolfServerThread extends Thread {
     }
   }
   
-  private void selectKPU(int p) {
+  private void selectKPU() {
     try {
       Thread.sleep(10000);
       if (!isKPUSelected) {
+        int best = -1;
+        int p = -1;
+        for (int i = 0; i < GC.MAX_CLIENT; i++) {
+          if (votes[i] > best) {
+            best = votes[i];
+            p = i;
+          }
+        }
         kpuSelectedReq(p);
+        voteNowReq();
       }
     } catch (Exception e) {
       
