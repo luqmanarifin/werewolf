@@ -249,7 +249,7 @@ class WerewolfServerThread extends Thread {
       Thread timeout = new Thread(new Runnable() {
         @Override
         public void run() {
-          System.out.println("INI THREAD BARU WOI!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+          System.out.println("NEW THREAD");
           selectKPU();
         }
       });
@@ -262,6 +262,7 @@ class WerewolfServerThread extends Thread {
     try {
       Thread.sleep(10000);
       if (!isKPUSelected) {
+        System.out.println("TIMEOUT!");
         int best = -1;
         int p = -1;
         for (int i = 0; i < GC.MAX_CLIENT; i++) {

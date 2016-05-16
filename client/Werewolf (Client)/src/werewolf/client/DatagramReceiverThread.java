@@ -200,7 +200,8 @@ public class DatagramReceiverThread implements Runnable{
     arr.add(WerewolfClient.me.id);
     response.put("proposal_id", arr);
     response.put("kpu_id", WerewolfClient.me.id);
-    sendUDPUnreliable(response, address, port);
+    System.out.println("SENDING MESSAGE WITH UNRELIABLE CONNECTION");
+    sendUDPMessage(response, address, port);
   }
 
   public static void acceptProposalRes(JSONObject obj, String address, int port) {
@@ -222,7 +223,7 @@ public class DatagramReceiverThread implements Runnable{
     JSONObject response = new JSONObject();
     response.put("status", "ok");
     response.put("description", "accepted proposal");
-    sendUDPMessage(response, address, port);
+    sendUDPUnreliable(response, address, port);
   }
 
   /**
