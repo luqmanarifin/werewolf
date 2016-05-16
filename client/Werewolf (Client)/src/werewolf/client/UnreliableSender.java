@@ -26,7 +26,7 @@ public class UnreliableSender
   
   public void unreliableSend(DatagramPacket packet) throws IOException {
     double rand = random.nextDouble();
-    if (rand < 0.5) {
+    if (rand < 0.8) {
       datagramSocket.send(packet);
     }
   }
