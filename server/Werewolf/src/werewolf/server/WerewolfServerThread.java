@@ -28,6 +28,8 @@ class WerewolfServerThread extends Thread {
   private static int[] votes = new int[GameComponent.MAX_CLIENT];
   private static int voteCount = 0;
   private static long time;
+  private static boolean isKPUSelected = false;
+  private static int kpuSelected = 0;
   
   public WerewolfServerThread(Socket clientSocket, GameComponent gc, int playerId) {
     this.clientSocket = clientSocket;
@@ -204,6 +206,7 @@ class WerewolfServerThread extends Thread {
   
   private void acceptedProposalRes(JSONObject message) {
     synchronized(GC) {
+      int p = -1;
       int kpu_id = ((Long) message.get("kpu_id")).intValue();
       System.out.println("bef : isWaiting " + isWaiting + " isVotingKpu " + isVotingKpu);
       if(!isWaiting) {
@@ -227,19 +230,42 @@ class WerewolfServerThread extends Thread {
         
         if(delta > 1e10 || GC.connectedPlayer <= voteCount) {
           isWaiting = false;
-          int best = -1, p = -1;
+          int best = -1;
+          p = -1;
           for(int i = 0; i < GC.MAX_CLIENT; i++) {
             if(votes[i] > best) {
               best = votes[i];
               p = i;
             }
           }
+          kpuSelected = p;
           // kpu selected vote now
           kpuSelectedReq(p);
           voteNowReq();
         }
       }
       System.out.println("aft : isWaiting " + isWaiting + " isVotingKpu " + isVotingKpu);
+      
+      Thread timeout = new Thread(new Runnable() {
+        @Override
+        public void run() {
+          System.out.println("INI THREAD BARU WOI!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+          selectKPU(kpuSelected);
+        }
+      });
+
+      timeout.start();
+    }
+  }
+  
+  private void selectKPU(int p) {
+    try {
+      Thread.sleep(10000);
+      if (!isKPUSelected) {
+        kpuSelectedReq(p);
+      }
+    } catch (Exception e) {
+      
     }
   }
   
@@ -379,6 +405,9 @@ class WerewolfServerThread extends Thread {
     System.out.println("Choose " + num + " as KPU");
     
     broadcastMessage(message);
+    isKPUSelected = true;
+    
+    
   }
   
   /**
